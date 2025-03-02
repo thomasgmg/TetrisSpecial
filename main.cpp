@@ -438,15 +438,12 @@ void UpdateDrawFrame(float gameTime)
 {
     BeginDrawing();
 
-    // Draw animated gradient background
-    Color topColor =
-        (Color){(unsigned char)(127 + 127 * sinf(gameTime)), 0, (unsigned char)(127 + 127 * cosf(gameTime)), 255};
-    Color bottomColor = (Color){0, (unsigned char)(127 + 127 * sinf(gameTime * 1.5f)),
-                                (unsigned char)(127 + 127 * cosf(gameTime * 0.5f)), 255};
-    DrawRectangleGradientV(0, 0, screenWidth, screenHeight, topColor, bottomColor);
-
     if (isMenu)
     {
+        Color topColor = (Color){0, 30, 0, 255};
+        Color bottomColor = (Color){0, 255, 0, 255};
+        DrawRectangleGradientV(0, 0, screenWidth, screenHeight, topColor, bottomColor);
+
         DrawTextEx(font, "Press ENTER to Start",
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2,
                              (float)screenHeight / 2 - 20},
@@ -454,6 +451,15 @@ void UpdateDrawFrame(float gameTime)
     }
     else if (gameOver) // Game-over state
     {
+        float timeFactor = gameTime * 0.2f;
+        Color topColor = {(unsigned char)(127 + 127 * sinf(timeFactor)),
+                          (unsigned char)(127 + 127 * sinf(timeFactor + 2.0f)),
+                          (unsigned char)(127 + 127 * sinf(timeFactor + 4.0f)), 255};
+        Color bottomColor = {(unsigned char)(127 + 127 * cosf(timeFactor)),
+                             (unsigned char)(127 + 127 * cosf(timeFactor + 2.0f)),
+                             (unsigned char)(127 + 127 * cosf(timeFactor + 4.0f)), 255};
+        DrawRectangleGradientV(0, 0, screenWidth, screenHeight, topColor, bottomColor);
+
         DrawTextEx(font, "Game Over",
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Game Over", 50, 1).x / 2,
                              (float)screenHeight / 2 - 20},
@@ -461,6 +467,7 @@ void UpdateDrawFrame(float gameTime)
     }
     else
     {
+        ClearBackground(DARKGRAY);
         UpdateGame();
         DrawGame();
         UpdateDrawParticles(GetFrameTime());
