@@ -46,6 +46,20 @@ struct Tetromino
     int size = 4;
 };
 
+struct Particle
+{
+    Vector2 position;
+    Vector2 velocity;
+    Color color;
+    float alpha;
+    float size;
+    float life;
+};
+
+int const MAX_PARTICLES = 100;
+Particle particles[MAX_PARTICLES];
+int particleCount = 0;
+
 Tetromino currentPiece;
 void spawnI(Tetromino &piece);
 void spawnJ(Tetromino &piece);
@@ -68,6 +82,56 @@ Tetromino rotatePiece(Tetromino Piece);
 bool canMoveHorizontally(Tetromino currentPiece, int amount);
 bool canMoveDown(Tetromino piece);
 void moveDown(Tetromino &currentPiece);
+
+void CreateLineClearEffect(int y)
+{
+    int particlesPerBlock = 4;
+    for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+    {
+        for (int p = 0; p < particlesPerBlock && particleCount < MAX_PARTICLES; p++)
+        {
+            Particle &particle = particles[particleCount];
+            particle.position = {(float)(GRID_OFFSET_X + x * BLOCK_SIZE + (float)BLOCK_SIZE / 2),
+                                 (float)(GRID_OFFSET_Y + y * BLOCK_SIZE + (float)BLOCK_SIZE / 2)};
+            particle.velocity = {(float)(GetRandomValue(-200, 200)) / 100.0f,
+                                 (float)(GetRandomValue(-200, 200)) / 100.0f};
+            particle.color = {(unsigned char)GetRandomValue(0, 255), (unsigned char)GetRandomValue(0, 255),
+                              (unsigned char)GetRandomValue(0, 255), 255}; // Full alpha to start
+            particle.alpha = 1.0f;
+            particle.size = (float)GetRandomValue(5, 15);
+            particle.life = 0.5f + GetRandomValue(0, 100) / 100.0f;
+            particleCount++;
+        }
+    }
+}
+
+void UpdateDrawParticles(float deltaTime)
+{
+    for (int i = particleCount - 1; i >= 0; i--)
+    {
+        Particle &p = particles[i];
+
+        // Update particle
+        p.position.x += p.velocity.x * deltaTime * 60;
+        p.position.y += p.velocity.y * deltaTime * 60;
+        p.life -= deltaTime;
+        p.alpha = p.life / 1.5f;
+
+        // Draw particle
+        Color particleColor = p.color;
+        particleColor.a = (unsigned char)(p.alpha * 255);
+        DrawRectanglePro({p.position.x, p.position.y, p.size, p.size}, {p.size / 2, p.size / 2},
+                         GetTime() * 90, // Rotate particles over time
+                         particleColor);
+
+        // Remove dead particles
+        if (p.life <= 0)
+        {
+            particles[i] = particles[particleCount - 1];
+            particleCount--;
+        }
+    }
+}
 
 void DrawGrid()
 {
@@ -118,6 +182,7 @@ int checkAndClearLines()
         if (isFull)
         {
             linesCleared++;
+            CreateLineClearEffect(y);
             for (int aboveY = y; aboveY > 0; aboveY--)
             {
                 for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
@@ -398,6 +463,7 @@ void UpdateDrawFrame(float gameTime)
     {
         UpdateGame();
         DrawGame();
+        UpdateDrawParticles(GetFrameTime());
     }
     EndDrawing();
 }
