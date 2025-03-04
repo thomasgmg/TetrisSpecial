@@ -55,7 +55,6 @@ struct Particle
     float size;
     float life;
 };
-
 int const MAX_PARTICLES = 100;
 Particle particles[MAX_PARTICLES];
 int particleCount = 0;
@@ -83,6 +82,9 @@ bool canMoveHorizontally(Tetromino currentPiece, int amount);
 bool canMoveDown(Tetromino piece);
 void moveDown(Tetromino &currentPiece);
 
+int score = 0;
+bool justClearedGrid = false;
+
 void CreateLineClearEffect(int y)
 {
     int particlesPerBlock = 4;
@@ -95,8 +97,7 @@ void CreateLineClearEffect(int y)
                                  (float)(GRID_OFFSET_Y + y * BLOCK_SIZE + (float)BLOCK_SIZE / 2)};
             particle.velocity = {(float)(GetRandomValue(-200, 200)) / 100.0f,
                                  (float)(GetRandomValue(-200, 200)) / 100.0f};
-            particle.color = {(unsigned char)GetRandomValue(0, 255), (unsigned char)GetRandomValue(0, 255),
-                              (unsigned char)GetRandomValue(0, 255), 255}; // Full alpha to start
+            particle.color = MAROON;
             particle.alpha = 1.0f;
             particle.size = (float)GetRandomValue(5, 15);
             particle.life = 0.5f + GetRandomValue(0, 100) / 100.0f;
@@ -168,8 +169,15 @@ void DrawPiece(Tetromino *piece)
 int checkAndClearLines()
 {
     int linesCleared = 0;
-    for (int y = GRID_VERTICAL_SIZE - 1; y >= 0; y--)
+
+    int y = GRID_VERTICAL_SIZE - 1;
+    while (y >= 0)
     {
+        if (y < 0 || y >= GRID_VERTICAL_SIZE)
+        {
+            break;
+        }
+
         bool isFull = true;
         for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
         {
@@ -179,10 +187,12 @@ int checkAndClearLines()
                 break;
             }
         }
+
         if (isFull)
         {
             linesCleared++;
             CreateLineClearEffect(y);
+
             for (int aboveY = y; aboveY > 0; aboveY--)
             {
                 for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
@@ -190,17 +200,45 @@ int checkAndClearLines()
                     grid[aboveY][x] = grid[aboveY - 1][x];
                 }
             }
+
+            // Clear the top line
             for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
             {
                 grid[0][x] = 0;
             }
-            ++y;
         }
+        else
+        {
+            y--;
+        }
+    }
+    score += linesCleared * 10;
+
+    bool isGridEmpty = true;
+    for (int y = 0; y < GRID_VERTICAL_SIZE && isGridEmpty; y++)
+    {
+        for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+        {
+            if (grid[y][x] != 0)
+            {
+                isGridEmpty = false;
+                break;
+            }
+        }
+    }
+
+    // Award 15 extra points if grid was full and is now empty
+    if (isGridEmpty && linesCleared > 0)
+    {
+        score += 15;
+        justClearedGrid = true;
+    }
+    else
+    {
+        justClearedGrid = false;
     }
     return linesCleared;
 }
-
-int score = 0;
 
 int main()
 {
@@ -250,7 +288,7 @@ void spawnPiece(void)
     // else if (randomNumber == 2)
     //     spawnJ(currentPiece);
     // else if (randomNumber == 3)
-    //     spawnL(currentPiece);
+    // spawnL(currentPiece);
     else if (randomNumber == 2)
         spawnO(currentPiece);
     // else if (randomNumber == 5)
@@ -405,7 +443,7 @@ void UpdateGame()
                 grid[y][x] = 1;
             }
 
-            int linesCleared = checkAndClearLines();
+            (void)checkAndClearLines();
 
             bool isGameOver = false;
             for (int i = 0; i < currentPiece.size; i++)
@@ -432,6 +470,19 @@ void DrawGame()
 {
     DrawGrid();
     DrawPiece(&currentPiece);
+    DrawText(TextFormat("Score: %i", score), 20, 20, 30, BLACK);
+
+    static float bonusTimer = 0.0f;
+    if (justClearedGrid)
+    {
+        bonusTimer = 2.0f;
+        justClearedGrid = false;
+    }
+    if (bonusTimer > 0)
+    {
+        DrawText("+15 Grid Clear Bonus!", screenWidth / 2 - 100, screenHeight / 2, 25, BLACK);
+        bonusTimer -= GetFrameTime();
+    }
 }
 
 void UpdateDrawFrame(float gameTime)
@@ -467,10 +518,13 @@ void UpdateDrawFrame(float gameTime)
     }
     else
     {
-        ClearBackground(DARKGRAY);
+        ClearBackground(LIGHTGRAY);
         UpdateGame();
         DrawGame();
         UpdateDrawParticles(GetFrameTime());
+        if (pause)
+            DrawText("GAME PAUSED", screenWidth / 2 - MeasureText("GAME PAUSED", 40) / 2, screenHeight / 2 - 40, 40,
+                     BLACK);
     }
     EndDrawing();
 }
