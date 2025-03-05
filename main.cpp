@@ -16,12 +16,17 @@ int const TOTAL_PIECES_TYPES = 7;
 int const screenWidth = 1150;
 int const screenHeight = 594;
 
+int level = 1;
+int linesClearedTotal = 0;
+int const BASE_LINES_PER_LEVEL = 5;
+int const LINES_INCREMENT_PER_LEVEL = 5;
+float baseFallSpeed = 0.3f;
+
 float gameTime = 0.0f;
 float lateralTimer = 0.0f;
 float lateralSpeed = 0.1f;
 float fallTimer = 0.0f;
-float fallSpeed = 0.5f;
-float fastFallSpeed = 0.01;
+float fallSpeed = 0.3f;
 float fallVelocity = 0.0f;
 float fallAcceleration = 4.5f;
 
@@ -34,6 +39,10 @@ bool isMenu = true;
 bool gameOver = false;
 bool pause = false;
 bool isInFreeFall = false;
+
+float pulseTimer = 0.0f;
+bool showPulseEffect = false;
+float const PULSE_DURATION = 2.5f;
 
 struct Unit
 {
@@ -58,6 +67,15 @@ struct Particle
 int const MAX_PARTICLES = 100;
 Particle particles[MAX_PARTICLES];
 int particleCount = 0;
+
+enum GameState
+{
+    MENU,
+    WAITING_TO_START,
+    PLAYING,
+    LEVEL_UP
+};
+GameState gameState = MENU;
 
 Tetromino currentPiece;
 void spawnI(Tetromino &piece);
@@ -84,6 +102,61 @@ void moveDown(Tetromino &currentPiece);
 
 int score = 0;
 bool justClearedGrid = false;
+
+void DrawPulseEffect(float deltaTime)
+{
+    if (!showPulseEffect)
+        return;
+
+    pulseTimer -= deltaTime;
+    if (pulseTimer <= 0)
+    {
+        showPulseEffect = false;
+        return;
+    }
+
+    float progress = 1.0f - (pulseTimer / PULSE_DURATION);
+    float maxRadius = sqrtf(powf(screenWidth, 2) + powf(screenHeight, 2)) / 2;
+    float currentRadius = maxRadius * progress;
+
+    Vector2 center = {(float)screenWidth / 2, (float)screenHeight / 2};
+
+    // Draw multiple pulsing rings
+    for (int i = 0; i < 3; i++)
+    {
+        float ringProgress = progress + (i * 0.3f);
+        if (ringProgress > 1.0f)
+            continue;
+
+        float ringRadius = maxRadius * ringProgress;
+        Color ringColor = DARKBLUE;
+        ringColor.a = (unsigned char)((1.0f - ringProgress) * 255 * 0.7f);
+
+        // Draw thick ring using multiple circles
+        for (int thickness = -2; thickness <= 2; thickness++)
+        {
+            DrawCircleLines((int)center.x, (int)center.y, ringRadius + (thickness * 2), ringColor);
+        }
+
+        // Add some sparkles at the edge
+        if (particleCount < MAX_PARTICLES - 8)
+        {
+            for (int j = 0; j < 8; j++)
+            {
+                float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
+                Particle &p = particles[particleCount];
+                p.position = {center.x + cosf(angle) * ringRadius, center.y + sinf(angle) * ringRadius};
+                p.velocity = {cosf(angle) * GetRandomValue(100, 200) / 100.0f,
+                              sinf(angle) * GetRandomValue(100, 200) / 100.0f};
+                p.color = {255, 215, 0, 255}; // Gold sparkles
+                p.alpha = 1.0f;
+                p.size = (float)GetRandomValue(3, 8);
+                p.life = 0.5f;
+                particleCount++;
+            }
+        }
+    }
+}
 
 void CreateLineClearEffect(int y)
 {
@@ -212,7 +285,8 @@ int checkAndClearLines()
             y--;
         }
     }
-    score += linesCleared * 10;
+    score += linesCleared * 10 * level;
+    linesClearedTotal += linesCleared;
 
     bool isGridEmpty = true;
     for (int y = 0; y < GRID_VERTICAL_SIZE && isGridEmpty; y++)
@@ -230,12 +304,29 @@ int checkAndClearLines()
     // Award 15 extra points if grid was full and is now empty
     if (isGridEmpty && linesCleared > 0)
     {
-        score += 15;
+        score += 50;
         justClearedGrid = true;
+        showPulseEffect = true; // Trigger the pulse effect
+        pulseTimer = PULSE_DURATION;
     }
     else
     {
         justClearedGrid = false;
+    }
+
+    int linesNeeded = BASE_LINES_PER_LEVEL + (level - 1) * LINES_INCREMENT_PER_LEVEL;
+
+    if (linesClearedTotal >= linesNeeded)
+    {
+        level++;
+        fallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.1f);
+        for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+            for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                grid[y][x] = 0;
+        score = 0;
+        linesClearedTotal = 0;
+        spawnPiece();
+        gameState = LEVEL_UP;
     }
     return linesCleared;
 }
@@ -247,29 +338,49 @@ int main()
     spawnPiece();
     SetTargetFPS(60);
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
+
     while (!WindowShouldClose())
     {
-        if (isMenu)
-        {
-            gameTime += GetFrameTime();
+        gameTime += GetFrameTime();
 
+        switch (gameState)
+        {
+        case MENU:
             if (IsKeyPressed(KEY_ENTER))
             {
-                isMenu = false;
-                gameOver = false;
-
+                gameState = WAITING_TO_START;
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
                         grid[y][x] = 0;
+                score = 0;
+                level = 1;
+                linesClearedTotal = 0;
+                fallSpeed = baseFallSpeed;
                 spawnPiece();
+                gameOver = false;
             }
-        }
-        else
-        {
-            gameTime += GetFrameTime();
+            break;
 
+        case WAITING_TO_START:
+            if (IsKeyPressed('S'))
+            {
+                gameState = PLAYING;
+            }
+            break;
+
+        case PLAYING:
             if (IsKeyPressed(KEY_M))
-                isMenu = true;
+            {
+                gameState = MENU;
+            }
+            break;
+
+        case LEVEL_UP:
+            if (IsKeyPressed('S'))
+            {
+                gameState = PLAYING;
+            }
+            break;
         }
         UpdateDrawFrame(gameTime);
     }
@@ -281,26 +392,26 @@ int main()
 void spawnPiece(void)
 {
     int randomNumber = 0;
-    randomNumber = (rand() / (RAND_MAX / 2)) + 1;
+    randomNumber = (rand() / (RAND_MAX / 7)) + 1;
 
     if (randomNumber == 1)
-        spawnI(currentPiece);
-    // else if (randomNumber == 2)
-    //     spawnJ(currentPiece);
-    // else if (randomNumber == 3)
-    // spawnL(currentPiece);
+        spawnS(currentPiece);
     else if (randomNumber == 2)
+        spawnJ(currentPiece);
+    else if (randomNumber == 3)
+        spawnL(currentPiece);
+    else if (randomNumber == 4)
         spawnO(currentPiece);
-    // else if (randomNumber == 5)
-    //     spawnS(currentPiece);
-    // else if (randomNumber == 6)
-    //     spawnT(currentPiece);
-    // else if (randomNumber == 7)
-    //     spawnZ(currentPiece);
+    else if (randomNumber == 5)
+        spawnI(currentPiece);
+    else if (randomNumber == 6)
+        spawnT(currentPiece);
+    else if (randomNumber == 7)
+        spawnZ(currentPiece);
 
-    fallSpeed = 0.5f;
     fallTimer = 0.0f;
     isInFreeFall = false;
+    fallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.1f);
 }
 
 void spawnI(Tetromino &piece)
@@ -361,6 +472,9 @@ void spawnZ(Tetromino &piece)
 
 void UpdateGame()
 {
+    if (gameState != PLAYING)
+        return;
+
     if (IsKeyPressed('P'))
     {
         pause = !pause;
@@ -369,6 +483,27 @@ void UpdateGame()
     if (pause)
     {
         return;
+    }
+
+    if (IsKeyPressed(KEY_LEFT))
+    {
+        if (canMoveHorizontally(currentPiece, -1))
+        {
+            for (int i = 0; i < currentPiece.size; i++)
+            {
+                currentPiece.units[i].position.x -= 1;
+            }
+        }
+    }
+    if (IsKeyPressed(KEY_RIGHT))
+    {
+        if (canMoveHorizontally(currentPiece, 1))
+        {
+            for (int i = 0; i < currentPiece.size; i++)
+            {
+                currentPiece.units[i].position.x += 1;
+            }
+        }
     }
 
     if (IsKeyDown(KEY_LEFT))
@@ -416,7 +551,7 @@ void UpdateGame()
     if (IsKeyPressed(KEY_DOWN))
     {
         {
-            fallSpeed = 0.2f;
+            fallSpeed = 0.05f;
         }
     }
 
@@ -425,6 +560,8 @@ void UpdateGame()
         isInFreeFall = true;
         fallSpeed = 0.01f;
     }
+
+    float levelAdjustedFallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.1f);
 
     fallTimer += GetFrameTime();
     if (fallTimer >= fallSpeed)
@@ -444,23 +581,26 @@ void UpdateGame()
             }
 
             (void)checkAndClearLines();
-
-            bool isGameOver = false;
-            for (int i = 0; i < currentPiece.size; i++)
+            if (gameState != LEVEL_UP)
             {
-                if (currentPiece.units[i].position.y <= 0)
+                bool isGameOver = false;
+                for (int i = 0; i < currentPiece.size; i++)
                 {
-                    isGameOver = true;
-                    break;
+                    if (currentPiece.units[i].position.y <= 0)
+                    {
+                        isGameOver = true;
+                        break;
+                    }
                 }
-            }
-            if (isGameOver)
-            {
-                gameOver = true;
-            }
-            else
-            {
-                spawnPiece();
+                if (isGameOver)
+                {
+                    gameOver = true;
+                }
+                else
+                {
+                    spawnPiece();
+                    fallSpeed = levelAdjustedFallSpeed;
+                }
             }
         }
     }
@@ -470,17 +610,36 @@ void DrawGame()
 {
     DrawGrid();
     DrawPiece(&currentPiece);
-    DrawText(TextFormat("Score: %i", score), 20, 20, 30, BLACK);
+    DrawText(TextFormat("Score: %i", score), 20, 60, 30, BLACK);
+    DrawText(TextFormat("Level: %i", level), 20, 20, 30, BLACK);
+    DrawText(TextFormat("Lines: %i", linesClearedTotal), 20, 100, 30, BLACK);
+
+    int linesNeeded = BASE_LINES_PER_LEVEL + (level - 1) * LINES_INCREMENT_PER_LEVEL;
+    DrawText(TextFormat("Next Level: %i/%i lines", linesClearedTotal, linesNeeded), 20, 140, 20, DARKGRAY);
+
+    if (linesClearedTotal < linesNeeded)
+    {
+        DrawText("Clear lines to advance!", 20, 180, 20, GRAY);
+    }
+    else
+    {
+        DrawText("Level Up!", 20, 180, 20, GREEN);
+    }
+    float progress = (float)linesClearedTotal / linesNeeded;
+    if (progress > 1.0f)
+        progress = 1.0f;
+    DrawRectangle(20, 200, 200, 20, GRAY);
+    DrawRectangle(20, 200, 200 * progress, 20, DARKGREEN);
 
     static float bonusTimer = 0.0f;
     if (justClearedGrid)
     {
-        bonusTimer = 2.0f;
+        bonusTimer = 1.0f;
         justClearedGrid = false;
     }
     if (bonusTimer > 0)
     {
-        DrawText("+15 Grid Clear Bonus!", screenWidth / 2 - 100, screenHeight / 2, 25, BLACK);
+        DrawText("+50 Grid Clear Bonus!", screenWidth / 2 - 135, screenHeight / 2 + 5, 25, BLACK);
         bonusTimer -= GetFrameTime();
     }
 }
@@ -489,42 +648,99 @@ void UpdateDrawFrame(float gameTime)
 {
     BeginDrawing();
 
-    if (isMenu)
-    {
-        Color topColor = (Color){0, 30, 0, 255};
-        Color bottomColor = (Color){0, 255, 0, 255};
-        DrawRectangleGradientV(0, 0, screenWidth, screenHeight, topColor, bottomColor);
+    const char *welcomeText = "Welcome to TETRIS SPECIAL";
 
+    switch (gameState)
+    {
+    case MENU: {
+        ClearBackground(BLACK);
+        // DrawTextEx(font, "Welcome to TETRIS SPECIAL",
+        //            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Welcome to TERIS SPECIAL", 50, 1).x / 2,
+        //                      (float)screenHeight / 2 - 40},
+        //            40, 1, WHITE);
+        // DrawTextEx(font, "Press ENTER to Start",
+        //            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2 + 30,
+        //                      (float)screenHeight / 2 + 40},
+        //            30, 1, WHITE);const char* welcomeText = "Welcome to TETRIS SPECIAL";Vector2 textPos =
+        //            {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, 40, 1).x / 2,
+
+        Vector2 textPos = {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, 40, 1).x / 2,
+                           (float)screenHeight / 2 - 40};
+
+        float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+        int glowLayers = 3;
+
+        for (int i = glowLayers; i >= 1; i--)
+        {
+            float glowSize = 40 + i * 5 * glowScale;
+            float glowAlpha = 0.3f - (i * 0.1f);
+            Color glowColor = {255, 255, 0, (unsigned char)(glowAlpha * 255)};
+
+            Vector2 glowPos = {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, glowSize, 1).x / 2,
+                               (float)screenHeight / 2 - 40 - i * 2}; // Slight offset upward
+
+            DrawTextEx(font, welcomeText, glowPos, glowSize, 1, glowColor);
+        }
+
+        // Main text on top
+        DrawTextEx(font, welcomeText, textPos, 40, 1, WHITE);
+
+        // "Press ENTER to Start" (unchanged)
         DrawTextEx(font, "Press ENTER to Start",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2,
-                             (float)screenHeight / 2 - 20},
-                   40, 1, WHITE);
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2 + 30,
+                             (float)screenHeight / 2 + 40},
+                   30, 1, WHITE);
+        break;
     }
-    else if (gameOver) // Game-over state
-    {
-        float timeFactor = gameTime * 0.2f;
-        Color topColor = {(unsigned char)(127 + 127 * sinf(timeFactor)),
-                          (unsigned char)(127 + 127 * sinf(timeFactor + 2.0f)),
-                          (unsigned char)(127 + 127 * sinf(timeFactor + 4.0f)), 255};
-        Color bottomColor = {(unsigned char)(127 + 127 * cosf(timeFactor)),
-                             (unsigned char)(127 + 127 * cosf(timeFactor + 2.0f)),
-                             (unsigned char)(127 + 127 * cosf(timeFactor + 4.0f)), 255};
-        DrawRectangleGradientV(0, 0, screenWidth, screenHeight, topColor, bottomColor);
 
-        DrawTextEx(font, "Game Over",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Game Over", 50, 1).x / 2,
-                             (float)screenHeight / 2 - 20},
-                   40, 1, WHITE);
-    }
-    else
-    {
+    case WAITING_TO_START:
+        ClearBackground(LIGHTGRAY);
+        DrawGame();
+        DrawTextEx(font, "Press <S> to Begin",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press <S> to Begin", 40, 1).x / 2,
+                             (float)screenHeight / 2 - 40},
+                   40, 1, BLACK);
+        DrawTextEx(font, "Use arrows to move",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press <S> to Begin", 40, 1).x / 2 + 50,
+                             (float)screenHeight / 2},
+                   25, 1, BLACK);
+        DrawTextEx(font, "Press <UP> to rotate",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press <S> to Begin", 40, 1).x / 2 + 40,
+                             (float)screenHeight / 2 + 25},
+                   25, 1, BLACK);
+        DrawTextEx(font, "Press <Down> for fast fall and <Space> for free fall",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press <S> to Begin", 40, 1).x / 2 - 130,
+                             (float)screenHeight / 2 + 50},
+                   25, 1, BLACK);
+        break;
+
+    case PLAYING:
         ClearBackground(LIGHTGRAY);
         UpdateGame();
         DrawGame();
         UpdateDrawParticles(GetFrameTime());
+        DrawPulseEffect(GetFrameTime());
         if (pause)
             DrawText("GAME PAUSED", screenWidth / 2 - MeasureText("GAME PAUSED", 40) / 2, screenHeight / 2 - 40, 40,
                      BLACK);
+        if (gameOver)
+        {
+            DrawTextEx(font, "Game Over",
+                       (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Game Over", 50, 1).x / 2,
+                                 (float)screenHeight / 2 - 20},
+                       40, 1, BLACK);
+        }
+        break;
+
+    case LEVEL_UP:
+        ClearBackground(LIGHTGRAY);
+        DrawGame();
+        DrawTextEx(
+            font, "Level Up! Press <S> to continue",
+            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Level Up! Press <S> to continue", 40, 1).x / 2,
+                      (float)screenHeight / 2 - 20},
+            40, 1, DARKGREEN);
+        break;
     }
     EndDrawing();
 }
