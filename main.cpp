@@ -16,10 +16,13 @@ int const TOTAL_PIECES_TYPES = 7;
 int const screenWidth = 1150;
 int const screenHeight = 594;
 
+int const MAX_STARS = 25;
+Vector2 stars[MAX_STARS];
+
 int level = 1;
 int linesClearedTotal = 0;
-int const BASE_LINES_PER_LEVEL = 5;
-int const LINES_INCREMENT_PER_LEVEL = 5;
+int const BASE_LINES_PER_LEVEL = 1;
+int const LINES_INCREMENT_PER_LEVEL = 1;
 float baseFallSpeed = 0.3f;
 
 float gameTime = 0.0f;
@@ -68,14 +71,65 @@ int const MAX_PARTICLES = 100;
 Particle particles[MAX_PARTICLES];
 int particleCount = 0;
 
+Sound doorHitSound;
+
 enum GameState
 {
     MENU,
     WAITING_TO_START,
     PLAYING,
-    LEVEL_UP
+    LEVEL_UP,
+    LEVEL_TRANSITION,
+    GAME_OVER
 };
 GameState gameState = MENU;
+
+struct PlayerUnit
+{
+    Vector2 position;
+    Color color;
+    float width;
+    float height;
+};
+
+struct Player
+{
+    Vector2 position;
+    Vector2 velocity;
+    PlayerUnit units[12];
+    int size = 12;
+    float unitSize = 50.0f;
+    bool isJumping = false;
+};
+Player player;
+
+struct Platform
+{
+    Vector2 position;
+    float width = 100.0f;
+    float height = 20.0f;
+};
+Platform platforms[5]; // 5 platforms total
+const int NUM_PLATFORMS = 5;
+
+// Door properties
+struct Door
+{
+    Vector2 position;
+    float width = 55.0f;
+    float height = 120.0f;
+};
+Door door;
+
+float transitionTimer = 0.0f;
+const float TRANSITION_DURATION = 10.0f; // Max time for transition (adjustable)
+
+bool doorHit = false;
+float doorEffectTimer = 0.0f;
+const float DOOR_EFFECT_DURATION = 1.0f;
+bool screenShake = false;
+float shakeTimer = 0.0f;
+const float SHAKE_DURATION = 1.5f;
 
 Tetromino currentPiece;
 void spawnI(Tetromino &piece);
@@ -103,6 +157,168 @@ void moveDown(Tetromino &currentPiece);
 int score = 0;
 bool justClearedGrid = false;
 
+void StartScreenShake()
+{
+    screenShake = true;
+    shakeTimer = SHAKE_DURATION;
+}
+
+void CreateDoorHitEffect(Vector2 position)
+{
+    // Flash effect
+    showPulseEffect = true;
+    pulseTimer = 3.5f; // Shorter duration for door hit
+    StartScreenShake();
+
+    PlaySound(doorHitSound);
+
+    // Particle burst
+    int particlesToSpawn = 777;
+    for (int i = 0; i < particlesToSpawn && particleCount < MAX_PARTICLES; i++)
+    {
+        Particle &p = particles[particleCount];
+        p.position = position;
+
+        // Random angle for circular burst
+        float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
+        float speed = (float)GetRandomValue(200, 400);
+
+        p.velocity = {cosf(angle) * speed, sinf(angle) * speed};
+        p.color = (i % 3 == 0) ? GOLD : BLACK; // Alternate between gold and black
+        p.alpha = 1.0f;
+        p.size = (float)GetRandomValue(7, 12);
+        p.life = GetRandomValue(5, 35) / 10.0f; // 0.5 to 3.5 seconds
+        particleCount++;
+    }
+
+    doorHit = true;
+    doorEffectTimer = DOOR_EFFECT_DURATION;
+}
+
+void UpdateLevelTransition(float deltaTime)
+{
+    if (pause)
+        return;
+
+    if (doorHit)
+    {
+        doorEffectTimer -= deltaTime;
+        if (doorEffectTimer <= 0.0f)
+        {
+            doorHit = false;
+            gameState = WAITING_TO_START;
+        }
+        return; // Skip normal update while showing effect
+    }
+
+    const float GRAVITY = 500.0f;
+    player.velocity.y += GRAVITY * deltaTime;
+
+    // Horizontal movement with arrow keys
+    const float MOVE_SPEED = 200.0f;
+    if (IsKeyDown(KEY_LEFT))
+    {
+        player.velocity.x = -MOVE_SPEED;
+    }
+    else if (IsKeyDown(KEY_RIGHT))
+    {
+        player.velocity.x = MOVE_SPEED;
+    }
+    else
+    {
+        player.velocity.x = 0;
+    }
+
+    // Jumping with space
+    if (IsKeyPressed(KEY_SPACE) && !player.isJumping)
+    {
+        player.velocity.y = -400.0f;
+        player.isJumping = true;
+    }
+
+    else if (IsKeyPressed('C'))
+        gameState = WAITING_TO_START;
+
+    // Update player position (center moves, units follow)
+    player.position.x += player.velocity.x * deltaTime;
+    player.position.y += player.velocity.y * deltaTime;
+
+    // Define bounding box around the player (for collision)
+    float boundingWidth = 24.0f;
+    float boundingHeight = 50.0f;
+
+    Rectangle playerRect = {player.position.x - boundingWidth / 2, player.position.y - boundingHeight / 2,
+                            boundingWidth, boundingHeight};
+
+    for (int i = 0; i < NUM_PLATFORMS; i++)
+    {
+        Rectangle platformRect = {platforms[i].position.x, platforms[i].position.y, platforms[i].width,
+                                  platforms[i].height};
+
+        if (CheckCollisionRecs(playerRect, platformRect))
+        {
+            float dx = (playerRect.x + playerRect.width / 2) - (platformRect.x + platformRect.width / 2);
+            float dy = (playerRect.y + playerRect.height / 2) - (platformRect.y + platformRect.height / 2);
+            float overlapX = abs(dx) - (playerRect.width / 2 + platformRect.width / 2);
+            float overlapY = abs(dy) - (playerRect.height / 2 + platformRect.height / 2);
+
+            if (overlapX < 0 && overlapY < 0)
+            {
+                if (abs(overlapX) < abs(overlapY))
+                {
+                    if (dx > 0)
+                    {
+                        player.position.x = platformRect.x + platformRect.width + boundingWidth / 2;
+                    }
+                    else
+                    {
+                        player.position.x = platformRect.x - boundingWidth / 2;
+                    }
+                    player.velocity.x = 0;
+                }
+                else
+                {
+                    if (dy > 0)
+                    {
+                        player.position.y = platformRect.y + platformRect.height + boundingHeight / 2;
+                        player.velocity.y = 0; // Stop vertical movement
+                    }
+                    else if (dy < 0 && player.velocity.y > 0)
+                    {
+                        player.position.y = platformRect.y - boundingHeight / 2;
+                        player.velocity.y = 0;
+                        player.isJumping = false;
+                    }
+                }
+            }
+        }
+    }
+
+    Rectangle doorRect = {door.position.x, door.position.y, door.width, door.height};
+    if (CheckCollisionRecs(playerRect, doorRect))
+    {
+        Vector2 doorCenter = {door.position.x + door.width / 2, door.position.y + door.height / 2};
+        CreateDoorHitEffect(doorCenter);
+
+        return;
+    }
+
+    if (player.position.y - boundingHeight / 2 > screenHeight)
+    {
+        gameOver = true;
+        gameState = GAME_OVER;
+        return;
+    }
+
+    // Update timer
+    transitionTimer -= deltaTime;
+    if (transitionTimer <= 0.0f)
+    {
+        gameOver = true;
+        gameState = GAME_OVER;
+    }
+}
+
 void DrawPulseEffect(float deltaTime)
 {
     if (!showPulseEffect)
@@ -117,7 +333,7 @@ void DrawPulseEffect(float deltaTime)
 
     float progress = 1.0f - (pulseTimer / PULSE_DURATION);
     float maxRadius = sqrtf(powf(screenWidth, 2) + powf(screenHeight, 2)) / 2;
-    float currentRadius = maxRadius * progress;
+    // float currentRadius = maxRadius * progress;
 
     Vector2 center = {(float)screenWidth / 2, (float)screenHeight / 2};
 
@@ -314,7 +530,7 @@ int checkAndClearLines()
         justClearedGrid = false;
     }
 
-    int linesNeeded = BASE_LINES_PER_LEVEL + (level - 1) * LINES_INCREMENT_PER_LEVEL;
+    int linesNeeded = level * level;
 
     if (linesClearedTotal >= linesNeeded)
     {
@@ -323,10 +539,54 @@ int checkAndClearLines()
         for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
             for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
                 grid[y][x] = 0;
+
         score = 0;
         linesClearedTotal = 0;
-        spawnPiece();
-        gameState = LEVEL_UP;
+        gameState = LEVEL_TRANSITION;
+        gameOver = false;
+        doorHit = false;
+        doorEffectTimer = 0.0f;
+        showPulseEffect = false;
+        pulseTimer = 0.0f;
+        particleCount = 0;
+
+        player.position = {(float)screenWidth - 50, 25.0f};
+        player.velocity = {0, 0};
+        player.isJumping = false;
+
+        player.units[0] = {{0, -27}, {255, 204, 153, 255}, 14.0f, 17.0f}; // Head (skin tone)
+        player.units[1] = {{0, 0}, {0, 128, 255, 255}, 18.0f, 25.0f};     // Torso
+        player.units[2] = {{-13, -3}, {204, 153, 102, 255}, 4.5f, 24.0f}; // Left arm
+        player.units[3] = {{5, -3}, {204, 153, 102, 255}, 4.5f, 24.0f};   // Right arm
+        player.units[4] = {{-5, 25}, {0, 0, 255, 255}, 7.0f, 28.0f};      // Left leg
+
+        player.units[5] = {{6, 25}, {0, 0, 255, 255}, 7.0f, 28.0f};       // Right leg
+        player.units[6] = {{0, -35}, {0, 0, 0, 255}, 15.0f, 6.0f};        // Hat or hair (red)
+        player.units[7] = {{-4, -29}, {0, 0, 0, 255}, 3.0f, 3.0f};        // Left eye (black)
+        player.units[8] = {{1, -29}, {0, 0, 0, 255}, 3.0f, 3.0f};         // Right eye (black)
+        player.units[9] = {{-2, -24}, {255, 102, 102, 255}, 7.0f, 2.0f};  // Mouth (pinkish-red)
+        player.units[10] = {{-2, -22}, {255, 102, 102, 255}, 5.0f, 1.0f}; // Mouth (smile)
+        player.units[11] = {{0, -16}, {255, 204, 153, 255}, 6, 8};        // Neck
+
+        // Initialize platforms (first one at bottom right, others spaced
+        // leftward)
+        float startX = screenWidth - platforms[0].width;
+        float spacing = 220.0f;
+
+        for (int i = 0; i < NUM_PLATFORMS; i++)
+        {
+            float platformX = startX - i * spacing;
+            // Random y position between screenHeight and screenHeight - 150
+            float minY = screenHeight - 250;
+            float maxY = screenHeight - 50;
+            float platformY = (float)GetRandomValue(minY, maxY);
+            platforms[i].position = {platformX, platformY};
+        }
+
+        door.position = {platforms[NUM_PLATFORMS - 1].position.x - door.width / 2 - 70,
+                         platforms[NUM_PLATFORMS - 1].position.y - door.height / 2 + platforms[0].height / 2};
+
+        transitionTimer = TRANSITION_DURATION;
     }
     return linesCleared;
 }
@@ -335,9 +595,20 @@ int main()
 {
     srand(time(0));
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
+    InitAudioDevice();
+    doorHitSound = LoadSound("/home/thomas/Downloads/gabriel-pontes-ze-da-manga.mp3");
+    SetSoundVolume(doorHitSound, 0.2f); // Volume
+
     spawnPiece();
     SetTargetFPS(60);
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
+
+    // Initialize stars at startup
+    for (int i = 0; i < MAX_STARS; i++)
+    {
+        stars[i].x = GetRandomValue(0, screenWidth);
+        stars[i].y = GetRandomValue(0, screenHeight); // Use screenHeight for Tetris
+    }
 
     while (!WindowShouldClose())
     {
@@ -358,6 +629,12 @@ int main()
                 fallSpeed = baseFallSpeed;
                 spawnPiece();
                 gameOver = false;
+                // Reinitialize stars when starting a new game
+                for (int i = 0; i < MAX_STARS; i++)
+                {
+                    stars[i].x = GetRandomValue(0, screenWidth);
+                    stars[i].y = GetRandomValue(0, screenHeight);
+                }
             }
             break;
 
@@ -365,20 +642,48 @@ int main()
             if (IsKeyPressed('S'))
             {
                 gameState = PLAYING;
+                spawnPiece();
+                gameOver = false;
             }
             break;
 
         case PLAYING:
-            if (IsKeyPressed(KEY_M))
-            {
+            if (IsKeyPressed('M'))
                 gameState = MENU;
-            }
+            // else if (IsKeyPressed('C'))
+            //     gameState = LEVEL_TRANSITION;
             break;
+
+        case LEVEL_TRANSITION:
+            if (IsKeyPressed('P'))
+                pause = !pause;
 
         case LEVEL_UP:
             if (IsKeyPressed('S'))
             {
                 gameState = PLAYING;
+            }
+            break;
+
+        case GAME_OVER:
+            if (IsKeyPressed(KEY_ENTER))
+            {
+                // Reset game state and return to PLAYING
+                for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+                    for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                        grid[y][x] = 0;
+                score = 0;
+                level = 1;
+                linesClearedTotal = 0;
+                fallSpeed = baseFallSpeed;
+                spawnPiece();
+                gameOver = false;
+                gameState = PLAYING;
+            }
+            if (IsKeyPressed(KEY_M))
+            {
+                gameState = MENU;
+                gameOver = false;
             }
             break;
         }
@@ -395,7 +700,7 @@ void spawnPiece(void)
     randomNumber = (rand() / (RAND_MAX / 7)) + 1;
 
     if (randomNumber == 1)
-        spawnS(currentPiece);
+        spawnI(currentPiece);
     else if (randomNumber == 2)
         spawnJ(currentPiece);
     else if (randomNumber == 3)
@@ -403,7 +708,7 @@ void spawnPiece(void)
     else if (randomNumber == 4)
         spawnO(currentPiece);
     else if (randomNumber == 5)
-        spawnI(currentPiece);
+        spawnS(currentPiece);
     else if (randomNumber == 6)
         spawnT(currentPiece);
     else if (randomNumber == 7)
@@ -473,6 +778,9 @@ void spawnZ(Tetromino &piece)
 void UpdateGame()
 {
     if (gameState != PLAYING)
+        return;
+
+    if (gameOver)
         return;
 
     if (IsKeyPressed('P'))
@@ -555,7 +863,7 @@ void UpdateGame()
         }
     }
 
-    else if (IsKeyPressed(KEY_SPACE))
+    if (IsKeyPressed(KEY_SPACE))
     {
         isInFreeFall = true;
         fallSpeed = 0.01f;
@@ -595,6 +903,7 @@ void UpdateGame()
                 if (isGameOver)
                 {
                     gameOver = true;
+                    gameState = GAME_OVER;
                 }
                 else
                 {
@@ -609,12 +918,12 @@ void UpdateGame()
 void DrawGame()
 {
     DrawGrid();
-    DrawPiece(&currentPiece);
+    // DrawPiece(&currentPiece);
     DrawText(TextFormat("Score: %i", score), 20, 60, 30, BLACK);
     DrawText(TextFormat("Level: %i", level), 20, 20, 30, BLACK);
     DrawText(TextFormat("Lines: %i", linesClearedTotal), 20, 100, 30, BLACK);
 
-    int linesNeeded = BASE_LINES_PER_LEVEL + (level - 1) * LINES_INCREMENT_PER_LEVEL;
+    int linesNeeded = level * level;
     DrawText(TextFormat("Next Level: %i/%i lines", linesClearedTotal, linesNeeded), 20, 140, 20, DARKGRAY);
 
     if (linesClearedTotal < linesNeeded)
@@ -654,16 +963,6 @@ void UpdateDrawFrame(float gameTime)
     {
     case MENU: {
         ClearBackground(BLACK);
-        // DrawTextEx(font, "Welcome to TETRIS SPECIAL",
-        //            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Welcome to TERIS SPECIAL", 50, 1).x / 2,
-        //                      (float)screenHeight / 2 - 40},
-        //            40, 1, WHITE);
-        // DrawTextEx(font, "Press ENTER to Start",
-        //            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2 + 30,
-        //                      (float)screenHeight / 2 + 40},
-        //            30, 1, WHITE);const char* welcomeText = "Welcome to TETRIS SPECIAL";Vector2 textPos =
-        //            {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, 40, 1).x / 2,
-
         Vector2 textPos = {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, 40, 1).x / 2,
                            (float)screenHeight / 2 - 40};
 
@@ -718,6 +1017,7 @@ void UpdateDrawFrame(float gameTime)
         ClearBackground(LIGHTGRAY);
         UpdateGame();
         DrawGame();
+        DrawPiece(&currentPiece);
         UpdateDrawParticles(GetFrameTime());
         DrawPulseEffect(GetFrameTime());
         if (pause)
@@ -732,6 +1032,110 @@ void UpdateDrawFrame(float gameTime)
         }
         break;
 
+    case LEVEL_TRANSITION: {
+        Vector2 shakeOffset = {0, 0};
+        if (screenShake)
+        {
+            shakeTimer -= GetFrameTime();
+            if (shakeTimer <= 0)
+                screenShake = false;
+            else
+            {
+                float shakeIntensity = shakeTimer / SHAKE_DURATION * 10.0f;
+                shakeOffset.x = (float)GetRandomValue(-shakeIntensity, shakeIntensity);
+                shakeOffset.y = (float)GetRandomValue(-shakeIntensity, shakeIntensity);
+            }
+        }
+
+        ClearBackground(DARKBLUE);
+        for (int i = 0; i < MAX_STARS; i++)
+        {
+            DrawCircleV(stars[i], GetRandomValue(1, 3), WHITE);
+        }
+
+        UpdateLevelTransition(GetFrameTime());
+
+        // Draw platforms (rounded rectangles)
+        for (int i = 0; i < NUM_PLATFORMS; i++)
+        {
+            Rectangle platformRect = {platforms[i].position.x - platforms[i].width / 2 + shakeOffset.x,  // Center x
+                                      platforms[i].position.y - platforms[i].height / 2 + shakeOffset.y, // Center y
+                                      platforms[i].width, platforms[i].height};
+            DrawRectangleRounded(platformRect, 1.2f, 8, MAROON);
+        }
+
+        Rectangle doorRect = {door.position.x - door.width / 2 + shakeOffset.x, door.position.y - door.height / 2,
+                              door.width + shakeOffset.y, door.height};
+
+        // Add a subtle shadow for depth
+        Rectangle shadowRect = {doorRect.x + 10 + shakeOffset.x, doorRect.y + 5 + shakeOffset.y, doorRect.width,
+                                doorRect.height};
+        DrawRectangleRec(shadowRect, (Color){0, 0, 0, 50}); // Faint black shadow
+
+        // Door frame (slightly larger, darker outline)
+        Rectangle frameRect = {doorRect.x - 4 + shakeOffset.x, doorRect.y - 4 + shakeOffset.y, doorRect.width + 8,
+                               doorRect.height + 8};
+        DrawRectangleRec(frameRect, (Color){139, 69, 19, 255});
+
+        // Main door body
+        DrawRectangleRec(doorRect, (Color){165, 42, 42, 255});
+
+        Rectangle topPanel = {doorRect.x + 4 + shakeOffset.x, doorRect.y + 4 + shakeOffset.y, doorRect.width - 8,
+                              (doorRect.height - 12) / 2};
+        Rectangle bottomPanel = {doorRect.x + 4 + shakeOffset.x, doorRect.y + doorRect.height / 2 + 2 + shakeOffset.y,
+                                 doorRect.width - 8, (doorRect.height - 12) / 2};
+        DrawRectangleRec(topPanel, (Color){139, 69, 19, 255});
+        DrawRectangleRec(bottomPanel, (Color){139, 69, 19, 255});
+
+        Vector2 handlePos = {doorRect.x + doorRect.width - 6 + shakeOffset.x,
+                             doorRect.y + doorRect.height * 0.6f + shakeOffset.y};
+        DrawCircleV(handlePos, 2.0f, GOLD);
+        DrawCircleLines(handlePos.x, handlePos.y, 2.0f, BLACK);
+
+        for (int i = 0; i < player.size; i++)
+        {
+            Vector2 unitPos = {player.position.x + player.units[i].position.x - player.unitSize / 2,
+                               player.position.y + player.units[i].position.y - player.unitSize / 2};
+
+            if (i == 0)
+            {
+                Rectangle headRect = {unitPos.x - player.units[i].width / 2, unitPos.y - player.units[i].height / 2,
+                                      player.units[i].width, player.units[i].height};
+                DrawRectangleRounded(headRect, 0.8f, 8, player.units[i].color);
+            }
+            else if (i == 2)
+            {
+                Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
+                DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
+                                 player.units[i].color);
+            }
+            else if (i == 3)
+            {
+                Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
+                DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
+                                 player.units[i].color);
+            }
+            else
+            {
+                Rectangle rect = {unitPos.x - player.units[i].width / 2, unitPos.y - player.units[i].height / 2,
+                                  player.units[i].width, player.units[i].height};
+                DrawRectangleRec(rect, player.units[i].color);
+            }
+        }
+
+        UpdateDrawParticles(GetFrameTime());
+        DrawPulseEffect(GetFrameTime());
+
+        DrawText(TextFormat("Time Left: %.1f", transitionTimer >= 0 ? transitionTimer : 0.0f), 20, 20, 20, WHITE);
+
+        if (pause)
+        {
+            DrawText("GAME PAUSED", screenWidth / 2 - MeasureText("GAME PAUSED", 40) / 2, screenHeight / 2 - 40, 40,
+                     WHITE);
+        }
+        break;
+    }
+
     case LEVEL_UP:
         ClearBackground(LIGHTGRAY);
         DrawGame();
@@ -740,6 +1144,19 @@ void UpdateDrawFrame(float gameTime)
             (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Level Up! Press <S> to continue", 40, 1).x / 2,
                       (float)screenHeight / 2 - 20},
             40, 1, DARKGREEN);
+        DrawText(TextFormat("Timer: %.1f / %.1f", transitionTimer, TRANSITION_DURATION), 20, 20, 20, WHITE);
+        break;
+
+    case GAME_OVER:
+        ClearBackground(BLACK);
+        DrawTextEx(font, "Game Over",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Game Over", 50, 1).x / 2,
+                             (float)screenHeight / 2 - 40},
+                   40, 1, WHITE);
+        DrawText("Press [ENTER] to Restart", screenWidth / 2 - MeasureText("Press [ENTER] to Restart", 20) / 2,
+                 screenHeight / 2 + 10, 20, WHITE);
+        DrawText("Press [M] to return to Menu", screenWidth / 2 - MeasureText("Press [M] to return to Menu", 20) / 2,
+                 screenHeight / 2 + 40, 20, WHITE);
         break;
     }
     EndDrawing();
@@ -748,6 +1165,8 @@ void UpdateDrawFrame(float gameTime)
 void UnloadGame()
 {
     UnloadFont(font);
+    UnloadSound(doorHitSound);
+    CloseAudioDevice();
 }
 
 Vector2 fromGrid(Vector2 position)
