@@ -596,7 +596,7 @@ int main()
     srand(time(0));
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
     InitAudioDevice();
-    doorHitSound = LoadSound("/home/thomas/Downloads/gabriel-pontes-ze-da-manga.mp3");
+    doorHitSound = LoadSound("resources/next-level.mp3");
     SetSoundVolume(doorHitSound, 0.2f); // Volume
 
     spawnPiece();
@@ -795,21 +795,29 @@ void UpdateGame()
 
     if (IsKeyPressed(KEY_LEFT))
     {
-        if (canMoveHorizontally(currentPiece, -1))
+        lateralTimer += GetFrameTime();
+        if (lateralTimer >= lateralSpeed)
         {
-            for (int i = 0; i < currentPiece.size; i++)
+            if (canMoveHorizontally(currentPiece, -1))
             {
-                currentPiece.units[i].position.x -= 1;
+                for (int i = 0; i < currentPiece.size; i++)
+                {
+                    currentPiece.units[i].position.x -= 1;
+                }
             }
         }
     }
     if (IsKeyPressed(KEY_RIGHT))
     {
-        if (canMoveHorizontally(currentPiece, 1))
+        lateralTimer += GetFrameTime();
+        if (lateralTimer >= lateralSpeed)
         {
-            for (int i = 0; i < currentPiece.size; i++)
+            if (canMoveHorizontally(currentPiece, 1))
             {
-                currentPiece.units[i].position.x += 1;
+                for (int i = 0; i < currentPiece.size; i++)
+                {
+                    currentPiece.units[i].position.x += 1;
+                }
             }
         }
     }
@@ -829,7 +837,6 @@ void UpdateGame()
             }
         }
     }
-
     else if (IsKeyDown(KEY_RIGHT))
     {
         lateralTimer += GetFrameTime();
