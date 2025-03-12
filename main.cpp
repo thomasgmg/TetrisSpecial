@@ -1,5 +1,6 @@
 #include "raylib.h"
 
+#include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -52,10 +53,19 @@ struct Unit
     Vector2 position;
 };
 
+enum PieceState
+{
+    NEW,
+    FALL,
+    FREE_FALL,
+    BOTTOMED
+};
+
 struct Tetromino
 {
     Unit units[4];
     int size = 4;
+    PieceState pieceState = NEW;
 };
 
 struct Particle
@@ -599,7 +609,7 @@ int main()
     doorHitSound = LoadSound("resources/next-level.mp3");
     SetSoundVolume(doorHitSound, 0.2f); // Volume
 
-    spawnPiece();
+    // spawnPiece();
     SetTargetFPS(60);
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
 
@@ -627,7 +637,7 @@ int main()
                 level = 1;
                 linesClearedTotal = 0;
                 fallSpeed = baseFallSpeed;
-                spawnPiece();
+                // spawnPiece();
                 gameOver = false;
                 // Reinitialize stars when starting a new game
                 for (int i = 0; i < MAX_STARS; i++)
@@ -642,6 +652,8 @@ int main()
             if (IsKeyPressed('S'))
             {
                 gameState = PLAYING;
+                printf("spawn piece waiting to start\n");
+                currentPiece.pieceState = NEW;
                 spawnPiece();
                 gameOver = false;
             }
@@ -676,6 +688,7 @@ int main()
                 level = 1;
                 linesClearedTotal = 0;
                 fallSpeed = baseFallSpeed;
+                printf("spawn piece game over\n");
                 spawnPiece();
                 gameOver = false;
                 gameState = PLAYING;
@@ -717,6 +730,9 @@ void spawnPiece(void)
     fallTimer = 0.0f;
     isInFreeFall = false;
     fallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.1f);
+
+    assert(currentPiece.pieceState == BOTTOMED || currentPiece.pieceState == NEW);
+    currentPiece.pieceState = FALL;
 }
 
 void spawnI(Tetromino &piece)
@@ -784,12 +800,62 @@ void UpdateGame()
         return;
 
     if (IsKeyPressed('P'))
-    {
         pause = !pause;
-    }
 
     if (pause)
+        return;
+
+    if (IsKeyPressed('C'))
     {
+        gameState = LEVEL_TRANSITION;
+        level++;
+        fallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.1f);
+        for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+            for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                grid[y][x] = 0;
+        score = 0;
+        linesClearedTotal = 0;
+        gameOver = false;
+        doorHit = false;
+        doorEffectTimer = 0.0f;
+        showPulseEffect = false;
+        pulseTimer = 0.0f;
+        particleCount = 0;
+
+        player.position = {(float)screenWidth - 50, 25.0f};
+        player.velocity = {0, 0};
+        player.isJumping = false;
+
+        player.units[0] = {{0, -27}, {255, 204, 153, 255}, 14.0f, 17.0f}; // Head (skin tone)
+        player.units[1] = {{0, 0}, {0, 128, 255, 255}, 18.0f, 25.0f};     // Torso
+        player.units[2] = {{-13, -3}, {204, 153, 102, 255}, 4.5f, 24.0f}; // Left arm
+        player.units[3] = {{5, -3}, {204, 153, 102, 255}, 4.5f, 24.0f};   // Right arm
+        player.units[4] = {{-5, 25}, {0, 0, 255, 255}, 7.0f, 28.0f};      // Left leg
+        player.units[5] = {{6, 25}, {0, 0, 255, 255}, 7.0f, 28.0f};       // Right leg
+        player.units[6] = {{0, -35}, {0, 0, 0, 255}, 15.0f, 6.0f};        // Hat or hair
+        player.units[7] = {{-4, -29}, {0, 0, 0, 255}, 3.0f, 3.0f};        // Left eye
+        player.units[8] = {{1, -29}, {0, 0, 0, 255}, 3.0f, 3.0f};         // Right eye
+        player.units[9] = {{-2, -24}, {255, 102, 102, 255}, 7.0f, 2.0f};  // Mouth
+        player.units[10] = {{-2, -22}, {255, 102, 102, 255}, 5.0f, 1.0f}; // Mouth (smile)
+        player.units[11] = {{0, -16}, {255, 204, 153, 255}, 6, 8};        // Neck
+
+        // Initialize platforms
+        float startX = screenWidth - platforms[0].width;
+        float spacing = 220.0f;
+        for (int i = 0; i < NUM_PLATFORMS; i++)
+        {
+            float platformX = startX - i * spacing;
+            float minY = screenHeight - 250;
+            float maxY = screenHeight - 50;
+            float platformY = (float)GetRandomValue(minY, maxY);
+            platforms[i].position = {platformX, platformY};
+        }
+
+        door.position = {platforms[NUM_PLATFORMS - 1].position.x - door.width / 2 - 70,
+                         platforms[NUM_PLATFORMS - 1].position.y - door.height / 2 + platforms[0].height / 2};
+
+        transitionTimer = TRANSITION_DURATION;
+        currentPiece.pieceState = NEW;
         return;
     }
 
@@ -883,11 +949,10 @@ void UpdateGame()
     {
         fallTimer = 0.0f;
         if (canMoveDown(currentPiece))
-        {
             moveDown(currentPiece);
-        }
         else
         {
+            currentPiece.pieceState = BOTTOMED;
             for (int i = 0; i < currentPiece.size; i++)
             {
                 int x = (int)currentPiece.units[i].position.x;
@@ -895,8 +960,9 @@ void UpdateGame()
                 grid[y][x] = 1;
             }
 
-            (void)checkAndClearLines();
-            if (gameState != LEVEL_UP)
+            checkAndClearLines();
+            // TODO don't go here if level up
+            if (gameState == PLAYING)
             {
                 bool isGameOver = false;
                 for (int i = 0; i < currentPiece.size; i++)
@@ -914,6 +980,7 @@ void UpdateGame()
                 }
                 else
                 {
+                    printf("spawn piece bottomed\n");
                     spawnPiece();
                     fallSpeed = levelAdjustedFallSpeed;
                 }
