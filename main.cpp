@@ -86,7 +86,7 @@ Sound doorHitSound;
 enum GameState
 {
     MENU,
-    WAITING_TO_START,
+    MANUAL,
     PLAYING,
     LEVEL_UP,
     LEVEL_TRANSITION,
@@ -212,11 +212,13 @@ void UpdateLevelTransition(float deltaTime)
 
     if (doorHit)
     {
+        currentPiece.pieceState = NEW;
         doorEffectTimer -= deltaTime;
         if (doorEffectTimer <= 0.0f)
         {
             doorHit = false;
-            gameState = WAITING_TO_START;
+            gameState = PLAYING;
+            spawnPiece();
         }
         return; // Skip normal update while showing effect
     }
@@ -247,7 +249,10 @@ void UpdateLevelTransition(float deltaTime)
     }
 
     else if (IsKeyPressed('C'))
-        gameState = WAITING_TO_START;
+    {
+        gameState = PLAYING;
+        currentPiece.pieceState = NEW;
+    }
 
     // Update player position (center moves, units follow)
     player.position.x += player.velocity.x * deltaTime;
@@ -609,7 +614,6 @@ int main()
     doorHitSound = LoadSound("resources/next-level.mp3");
     SetSoundVolume(doorHitSound, 0.2f); // Volume
 
-    // spawnPiece();
     SetTargetFPS(60);
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
 
@@ -629,7 +633,7 @@ int main()
         case MENU:
             if (IsKeyPressed(KEY_ENTER))
             {
-                gameState = WAITING_TO_START;
+                gameState = PLAYING;
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
                         grid[y][x] = 0;
@@ -637,38 +641,53 @@ int main()
                 level = 1;
                 linesClearedTotal = 0;
                 fallSpeed = baseFallSpeed;
-                // spawnPiece();
+                currentPiece.pieceState = NEW;
+                spawnPiece();
                 gameOver = false;
-                // Reinitialize stars when starting a new game
+
                 for (int i = 0; i < MAX_STARS; i++)
                 {
                     stars[i].x = GetRandomValue(0, screenWidth);
                     stars[i].y = GetRandomValue(0, screenHeight);
                 }
             }
+
+            else if (IsKeyPressed(KEY_SPACE))
+                gameState = MANUAL;
             break;
 
-        case WAITING_TO_START:
-            if (IsKeyPressed('S'))
+        case MANUAL:
+            if (IsKeyPressed(KEY_ENTER))
             {
                 gameState = PLAYING;
-                printf("spawn piece waiting to start\n");
+                for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+                    for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                        grid[y][x] = 0;
+                score = 0;
+                level = 1;
+                linesClearedTotal = 0;
+                fallSpeed = baseFallSpeed;
                 currentPiece.pieceState = NEW;
                 spawnPiece();
                 gameOver = false;
+
+                for (int i = 0; i < MAX_STARS; i++)
+                {
+                    stars[i].x = GetRandomValue(0, screenWidth);
+                    stars[i].y = GetRandomValue(0, screenHeight);
+                }
             }
-            break;
 
         case PLAYING:
             if (IsKeyPressed('M'))
                 gameState = MENU;
-            // else if (IsKeyPressed('C'))
-            //     gameState = LEVEL_TRANSITION;
             break;
 
         case LEVEL_TRANSITION:
             if (IsKeyPressed('P'))
                 pause = !pause;
+            if (IsKeyPressed('M'))
+                gameState = MENU;
 
         case LEVEL_UP:
             if (IsKeyPressed('S'))
@@ -688,7 +707,6 @@ int main()
                 level = 1;
                 linesClearedTotal = 0;
                 fallSpeed = baseFallSpeed;
-                printf("spawn piece game over\n");
                 spawnPiece();
                 gameOver = false;
                 gameState = PLAYING;
@@ -856,6 +874,7 @@ void UpdateGame()
 
         transitionTimer = TRANSITION_DURATION;
         currentPiece.pieceState = NEW;
+        spawnPiece();
         return;
     }
 
@@ -980,7 +999,6 @@ void UpdateGame()
                 }
                 else
                 {
-                    printf("spawn piece bottomed\n");
                     spawnPiece();
                     fallSpeed = levelAdjustedFallSpeed;
                 }
@@ -992,7 +1010,6 @@ void UpdateGame()
 void DrawGame()
 {
     DrawGrid();
-    // DrawPiece(&currentPiece);
     DrawText(TextFormat("Score: %i", score), 20, 60, 30, BLACK);
     DrawText(TextFormat("Level: %i", level), 20, 20, 30, BLACK);
     DrawText(TextFormat("Lines: %i", linesClearedTotal), 20, 100, 30, BLACK);
@@ -1032,6 +1049,7 @@ void UpdateDrawFrame(float gameTime)
     BeginDrawing();
 
     const char *welcomeText = "Welcome to TETRIS SPECIAL";
+    const char *manualText = "User Manual";
 
     switch (gameState)
     {
@@ -1060,32 +1078,77 @@ void UpdateDrawFrame(float gameTime)
 
         // "Press ENTER to Start" (unchanged)
         DrawTextEx(font, "Press ENTER to Start",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2 + 30,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2 + 70,
                              (float)screenHeight / 2 + 40},
+                   30, 1, WHITE);
+        DrawTextEx(font, "Press SPACE to go to the Manual",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2,
+                             (float)screenHeight / 2 + 80},
                    30, 1, WHITE);
         break;
     }
 
-    case WAITING_TO_START:
-        ClearBackground(LIGHTGRAY);
-        DrawGame();
-        DrawTextEx(font, "Press <S> to Begin",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press <S> to Begin", 40, 1).x / 2,
+    case MANUAL: {
+        ClearBackground(BLACK);
+
+        Vector2 textPos = {(float)screenWidth / 2 - MeasureTextEx(font, manualText, 40, 1).x / 2,
+                           (float)screenHeight / 2};
+
+        float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+        int glowLayers = 3;
+
+        for (int i = glowLayers; i >= 1; i--)
+        {
+            float glowSize = 100 + i * 5 * glowScale;
+            float glowAlpha = 0.3f - (i * 0.1f);
+            Color glowColor = {255, 255, 0, (unsigned char)(glowAlpha * 255)};
+
+            Vector2 glowPos = {(float)screenWidth / 2 - MeasureTextEx(font, manualText, glowSize, 1).x / 2,
+                               (float)screenHeight / 2 - 240 - i * 2}; // Slight offset upward
+
+            DrawTextEx(font, manualText, glowPos, glowSize, 1, glowColor);
+        }
+
+        DrawTextEx(font, "Press ENTER to Play",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2,
+                             (float)screenHeight / 2 - 105},
+                   35, 1, WHITE);
+
+        DrawTextEx(font, "Tetris:",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 100,
                              (float)screenHeight / 2 - 40},
-                   40, 1, BLACK);
+                   35, 1, WHITE);
         DrawTextEx(font, "Use arrows to move",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press <S> to Begin", 40, 1).x / 2 + 50,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 50,
                              (float)screenHeight / 2},
-                   25, 1, BLACK);
+                   25, 1, WHITE);
         DrawTextEx(font, "Press <UP> to rotate",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press <S> to Begin", 40, 1).x / 2 + 40,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 40,
                              (float)screenHeight / 2 + 25},
-                   25, 1, BLACK);
+                   25, 1, WHITE);
         DrawTextEx(font, "Press <Down> for fast fall and <Space> for free fall",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press <S> to Begin", 40, 1).x / 2 - 130,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 - 130,
                              (float)screenHeight / 2 + 50},
-                   25, 1, BLACK);
+                   25, 1, WHITE);
+
+        DrawTextEx(font, "Player Game:",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 70,
+                             (float)screenHeight / 2 + 100},
+                   35, 1, WHITE);
+        DrawTextEx(font, "Use arrows to move",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 50,
+                             (float)screenHeight / 2 + 140},
+                   25, 1, WHITE);
+        DrawTextEx(font, "Use <Space> to jump",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 50,
+                             (float)screenHeight / 2 + 165},
+                   25, 1, WHITE);
+        DrawTextEx(font, "Move the player against the door to pass the level",
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 - 120,
+                             (float)screenHeight / 2 + 190},
+                   25, 1, WHITE);
         break;
+    }
 
     case PLAYING:
         ClearBackground(LIGHTGRAY);
