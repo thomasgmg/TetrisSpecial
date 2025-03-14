@@ -28,7 +28,7 @@ float baseFallSpeed = 0.3f;
 
 float gameTime = 0.0f;
 float lateralTimer = 0.0f;
-float lateralSpeed = 0.1f;
+float lateralSpeed = 0.07f;
 float fallTimer = 0.0f;
 float fallSpeed = 0.3f;
 float fallVelocity = 0.0f;
@@ -550,7 +550,7 @@ int checkAndClearLines()
     if (linesClearedTotal >= linesNeeded)
     {
         level++;
-        fallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.1f);
+        fallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.01f);
         for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
             for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
                 grid[y][x] = 0;
@@ -1092,14 +1092,14 @@ void UpdateDrawFrame(float gameTime)
         ClearBackground(BLACK);
 
         Vector2 textPos = {(float)screenWidth / 2 - MeasureTextEx(font, manualText, 40, 1).x / 2,
-                           (float)screenHeight / 2};
+                           (float)screenHeight / 2 - 240};
 
         float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
         int glowLayers = 3;
 
         for (int i = glowLayers; i >= 1; i--)
         {
-            float glowSize = 100 + i * 5 * glowScale;
+            float glowSize = 40 + i * 5 * glowScale;
             float glowAlpha = 0.3f - (i * 0.1f);
             Color glowColor = {255, 255, 0, (unsigned char)(glowAlpha * 255)};
 
@@ -1108,8 +1108,9 @@ void UpdateDrawFrame(float gameTime)
 
             DrawTextEx(font, manualText, glowPos, glowSize, 1, glowColor);
         }
+        DrawTextEx(font, manualText, textPos, 40, 1, WHITE);
 
-        DrawTextEx(font, "Press ENTER to Play",
+        DrawTextEx(font, "(Press ENTER to Play)",
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2,
                              (float)screenHeight / 2 - 105},
                    35, 1, WHITE);
