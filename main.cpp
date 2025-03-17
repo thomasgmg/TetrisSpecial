@@ -707,7 +707,7 @@ int main()
         case GAME_OVER:
             if (IsKeyPressed(KEY_ENTER))
             {
-                // Reset game state and return to PLAYING
+                PlaySound(levelStartSound);
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
                         grid[y][x] = 0;
