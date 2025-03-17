@@ -43,6 +43,7 @@ bool isMenu = true;
 bool gameOver = false;
 bool pause = false;
 bool isInFreeFall = false;
+bool isPlayer = true;
 
 float pulseTimer = 0.0f;
 bool showPulseEffect = false;
@@ -82,6 +83,7 @@ Particle particles[MAX_PARTICLES];
 int particleCount = 0;
 
 Sound doorHitSound;
+Sound levelStartSound;
 
 enum GameState
 {
@@ -214,19 +216,20 @@ void UpdateLevelTransition(float deltaTime)
     {
         currentPiece.pieceState = NEW;
         doorEffectTimer -= deltaTime;
+        isPlayer = false;
         if (doorEffectTimer <= 0.0f)
         {
+            isPlayer = true;
             doorHit = false;
             gameState = PLAYING;
             spawnPiece();
         }
-        return; // Skip normal update while showing effect
+        return;
     }
 
     const float GRAVITY = 500.0f;
     player.velocity.y += GRAVITY * deltaTime;
 
-    // Horizontal movement with arrow keys
     const float MOVE_SPEED = 200.0f;
     if (IsKeyDown(KEY_LEFT))
     {
@@ -307,22 +310,22 @@ void UpdateLevelTransition(float deltaTime)
                 }
             }
         }
-    }
 
-    Rectangle doorRect = {door.position.x, door.position.y, door.width, door.height};
-    if (CheckCollisionRecs(playerRect, doorRect))
-    {
-        Vector2 doorCenter = {door.position.x + door.width / 2, door.position.y + door.height / 2};
-        CreateDoorHitEffect(doorCenter);
+        Rectangle doorRect = {door.position.x, door.position.y, door.width, door.height};
+        if (CheckCollisionRecs(playerRect, doorRect))
+        {
+            Vector2 doorCenter = {door.position.x + door.width / 2, door.position.y + door.height / 2};
+            CreateDoorHitEffect(doorCenter);
 
-        return;
-    }
+            return;
+        }
 
-    if (player.position.y - boundingHeight / 2 > screenHeight)
-    {
-        gameOver = true;
-        gameState = GAME_OVER;
-        return;
+        if (player.position.y - boundingHeight / 2 > screenHeight)
+        {
+            gameOver = true;
+            gameState = GAME_OVER;
+            return;
+        }
     }
 
     // Update timer
@@ -610,9 +613,12 @@ int main()
 {
     srand(time(0));
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
+
     InitAudioDevice();
+    levelStartSound = LoadSound("resources/Good-boy.mp3");
+    SetSoundVolume(levelStartSound, 1.0f);
     doorHitSound = LoadSound("resources/next-level.mp3");
-    SetSoundVolume(doorHitSound, 0.2f); // Volume
+    SetSoundVolume(doorHitSound, 0.2f);
 
     SetTargetFPS(60);
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
@@ -633,6 +639,7 @@ int main()
         case MENU:
             if (IsKeyPressed(KEY_ENTER))
             {
+                PlaySound(levelStartSound);
                 gameState = PLAYING;
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
@@ -659,6 +666,7 @@ int main()
         case MANUAL:
             if (IsKeyPressed(KEY_ENTER))
             {
+                PlaySound(levelStartSound);
                 gameState = PLAYING;
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
@@ -707,6 +715,7 @@ int main()
                 level = 1;
                 linesClearedTotal = 0;
                 fallSpeed = baseFallSpeed;
+                currentPiece.pieceState = NEW;
                 spawnPiece();
                 gameOver = false;
                 gameState = PLAYING;
@@ -1230,34 +1239,37 @@ void UpdateDrawFrame(float gameTime)
         DrawCircleV(handlePos, 2.0f, GOLD);
         DrawCircleLines(handlePos.x, handlePos.y, 2.0f, BLACK);
 
-        for (int i = 0; i < player.size; i++)
+        if (isPlayer)
         {
-            Vector2 unitPos = {player.position.x + player.units[i].position.x - player.unitSize / 2,
-                               player.position.y + player.units[i].position.y - player.unitSize / 2};
+            for (int i = 0; i < player.size; i++)
+            {
+                Vector2 unitPos = {player.position.x + player.units[i].position.x - player.unitSize / 2,
+                                   player.position.y + player.units[i].position.y - player.unitSize / 2};
 
-            if (i == 0)
-            {
-                Rectangle headRect = {unitPos.x - player.units[i].width / 2, unitPos.y - player.units[i].height / 2,
+                if (i == 0)
+                {
+                    Rectangle headRect = {unitPos.x - player.units[i].width / 2, unitPos.y - player.units[i].height / 2,
+                                          player.units[i].width, player.units[i].height};
+                    DrawRectangleRounded(headRect, 0.8f, 8, player.units[i].color);
+                }
+                else if (i == 2)
+                {
+                    Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
+                    DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
+                                     player.units[i].color);
+                }
+                else if (i == 3)
+                {
+                    Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
+                    DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
+                                     player.units[i].color);
+                }
+                else
+                {
+                    Rectangle rect = {unitPos.x - player.units[i].width / 2, unitPos.y - player.units[i].height / 2,
                                       player.units[i].width, player.units[i].height};
-                DrawRectangleRounded(headRect, 0.8f, 8, player.units[i].color);
-            }
-            else if (i == 2)
-            {
-                Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
-                DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
-                                 player.units[i].color);
-            }
-            else if (i == 3)
-            {
-                Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
-                DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
-                                 player.units[i].color);
-            }
-            else
-            {
-                Rectangle rect = {unitPos.x - player.units[i].width / 2, unitPos.y - player.units[i].height / 2,
-                                  player.units[i].width, player.units[i].height};
-                DrawRectangleRec(rect, player.units[i].color);
+                    DrawRectangleRec(rect, player.units[i].color);
+                }
             }
         }
 
@@ -1303,6 +1315,7 @@ void UpdateDrawFrame(float gameTime)
 void UnloadGame()
 {
     UnloadFont(font);
+    UnloadSound(levelStartSound);
     UnloadSound(doorHitSound);
     CloseAudioDevice();
 }
