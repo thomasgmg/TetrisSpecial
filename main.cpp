@@ -615,10 +615,10 @@ int main()
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
 
     InitAudioDevice();
-    levelStartSound = LoadSound("resources/Good-boy.mp3");
-    SetSoundVolume(levelStartSound, 1.0f);
+    levelStartSound = LoadSound("resources/level-Start-Sound.mp3");
+    SetSoundVolume(levelStartSound, 57.0f);
     doorHitSound = LoadSound("resources/next-level.mp3");
-    SetSoundVolume(doorHitSound, 0.2f);
+    SetSoundVolume(doorHitSound, 0.1f);
 
     SetTargetFPS(60);
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
