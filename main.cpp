@@ -1003,7 +1003,7 @@ void UpdateGame()
             }
 
             // check timer
-            if (bottomedTimer < 0.2f)
+            if (bottomedTimer < 0.15f)
             {
                 return;
             }
@@ -1417,6 +1417,16 @@ Tetromino rotatePiece(Tetromino piece)
 
         if (rotatedPiece.units[i].position.x < 0 || rotatedPiece.units[i].position.x >= GRID_HORIZONTAL_SIZE ||
             rotatedPiece.units[i].position.y < 0 || rotatedPiece.units[i].position.y >= GRID_VERTICAL_SIZE)
+        {
+            return piece;
+        }
+    }
+    for (int i = 0; i < rotatedPiece.size; i++)
+    {
+        int x = (int)rotatedPiece.units[i].position.x;
+        int y = (int)rotatedPiece.units[i].position.y;
+
+        if (grid[y][x] == 1)
         {
             return piece;
         }
