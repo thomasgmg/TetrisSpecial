@@ -23,6 +23,7 @@ Vector2 stars[MAX_STARS];
 
 int level = 1;
 int linesClearedTotal = 0;
+int linesClearedThisLevel = 0;
 int const BASE_LINES_PER_LEVEL = 1;
 int const LINES_INCREMENT_PER_LEVEL = 1;
 float baseFallSpeed = 0.3f;
@@ -513,6 +514,7 @@ int checkAndClearLines()
     }
     score += linesCleared * 10 * level;
     linesClearedTotal += linesCleared;
+    linesClearedThisLevel += linesCleared;
 
     bool isGridEmpty = true;
     for (int y = 0; y < GRID_VERTICAL_SIZE && isGridEmpty; y++)
@@ -541,7 +543,7 @@ int checkAndClearLines()
 
     int linesNeeded = level * level;
 
-    if (linesClearedTotal >= linesNeeded)
+    if (linesClearedThisLevel >= linesNeeded)
     {
         level++;
         fallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.01f);
@@ -550,7 +552,7 @@ int checkAndClearLines()
                 grid[y][x] = 0;
 
         score = 0;
-        linesClearedTotal = 0;
+        linesClearedThisLevel = 0;
         gameState = LEVEL_TRANSITION;
         gameOver = false;
         doorHit = false;
@@ -650,6 +652,7 @@ int main()
                 score = 0;
                 level = 1;
                 linesClearedTotal = 0;
+                linesClearedThisLevel = 0;
                 fallSpeed = baseFallSpeed;
                 currentPiece.pieceState = NEW;
                 spawnPiece();
@@ -677,6 +680,7 @@ int main()
                 score = 0;
                 level = 1;
                 linesClearedTotal = 0;
+                linesClearedThisLevel = 0;
                 fallSpeed = baseFallSpeed;
                 currentPiece.pieceState = NEW;
                 spawnPiece();
@@ -721,6 +725,7 @@ int main()
                 score = 0;
                 level = 1;
                 linesClearedTotal = 0;
+                linesClearedThisLevel = 0;
                 fallSpeed = baseFallSpeed;
                 currentPiece.pieceState = NEW;
                 spawnPiece();
@@ -850,7 +855,7 @@ void UpdateGame()
             for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
                 grid[y][x] = 0;
         score = 0;
-        linesClearedTotal = 0;
+        linesClearedThisLevel = 0;
         gameOver = false;
         doorHit = false;
         doorEffectTimer = 0.0f;
@@ -1051,9 +1056,9 @@ void DrawGame()
     DrawText(TextFormat("Lines: %i", linesClearedTotal), 20, 100, 30, BLACK);
 
     int linesNeeded = level * level;
-    DrawText(TextFormat("Next Level: %i/%i lines", linesClearedTotal, linesNeeded), 20, 140, 20, DARKGRAY);
+    DrawText(TextFormat("Next Level: %i/%i lines", linesClearedThisLevel, linesNeeded), 20, 140, 20, DARKGRAY);
 
-    if (linesClearedTotal < linesNeeded)
+    if (linesClearedThisLevel < linesNeeded)
     {
         DrawText("Clear lines to advance!", 20, 180, 20, GRAY);
     }
