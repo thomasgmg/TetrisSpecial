@@ -1,5 +1,6 @@
 #include "raylib.h"
 
+#include "score.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -123,10 +124,9 @@ struct Platform
     float width = 100.0f;
     float height = 20.0f;
 };
-Platform platforms[5]; // 5 platforms total
+Platform platforms[5];
 const int NUM_PLATFORMS = 5;
 
-// Door properties
 struct Door
 {
     Vector2 position;
@@ -136,7 +136,7 @@ struct Door
 Door door;
 
 float transitionTimer = 0.0f;
-const float TRANSITION_DURATION = 10.0f; // Max time for transition (adjustable)
+const float TRANSITION_DURATION = 10.0f;
 
 bool doorHit = false;
 float doorEffectTimer = 0.0f;
@@ -179,21 +179,18 @@ void StartScreenShake()
 
 void CreateDoorHitEffect(Vector2 position)
 {
-    // Flash effect
     showPulseEffect = true;
-    pulseTimer = 3.5f; // Shorter duration for door hit
+    pulseTimer = 3.5f;
     StartScreenShake();
 
     PlaySound(doorHitSound);
 
-    // Particle burst
     int particlesToSpawn = 777;
     for (int i = 0; i < particlesToSpawn && particleCount < MAX_PARTICLES; i++)
     {
         Particle &p = particles[particleCount];
         p.position = position;
 
-        // Random angle for circular burst
         float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
         float speed = (float)GetRandomValue(200, 400);
 
@@ -246,7 +243,6 @@ void UpdateLevelTransition(float deltaTime)
         player.velocity.x = 0;
     }
 
-    // Jumping with space
     if (IsKeyPressed(KEY_SPACE) && !player.isJumping)
     {
         player.velocity.y = -400.0f;
@@ -259,11 +255,9 @@ void UpdateLevelTransition(float deltaTime)
         currentPiece.pieceState = NEW;
     }
 
-    // Update player position (center moves, units follow)
     player.position.x += player.velocity.x * deltaTime;
     player.position.y += player.velocity.y * deltaTime;
 
-    // Define bounding box around the player (for collision)
     float boundingWidth = 24.0f;
     float boundingHeight = 50.0f;
 
@@ -330,7 +324,6 @@ void UpdateLevelTransition(float deltaTime)
         }
     }
 
-    // Update timer
     transitionTimer -= deltaTime;
     if (transitionTimer <= 0.0f)
     {
@@ -353,11 +346,9 @@ void DrawPulseEffect(float deltaTime)
 
     float progress = 1.0f - (pulseTimer / PULSE_DURATION);
     float maxRadius = sqrtf(powf(screenWidth, 2) + powf(screenHeight, 2)) / 2;
-    // float currentRadius = maxRadius * progress;
 
     Vector2 center = {(float)screenWidth / 2, (float)screenHeight / 2};
 
-    // Draw multiple pulsing rings
     for (int i = 0; i < 3; i++)
     {
         float ringProgress = progress + (i * 0.3f);
@@ -421,7 +412,6 @@ void UpdateDrawParticles(float deltaTime)
     {
         Particle &p = particles[i];
 
-        // Update particle
         p.position.x += p.velocity.x * deltaTime * 60;
         p.position.y += p.velocity.y * deltaTime * 60;
         p.life -= deltaTime;
@@ -537,12 +527,11 @@ int checkAndClearLines()
         }
     }
 
-    // Award 15 extra points if grid was full and is now empty
     if (isGridEmpty && linesCleared > 0)
     {
         score += 50;
         justClearedGrid = true;
-        showPulseEffect = true; // Trigger the pulse effect
+        showPulseEffect = true;
         pulseTimer = PULSE_DURATION;
     }
     else
@@ -588,15 +577,12 @@ int checkAndClearLines()
         player.units[10] = {{-2, -22}, {255, 102, 102, 255}, 5.0f, 1.0f}; // Mouth (smile)
         player.units[11] = {{0, -16}, {255, 204, 153, 255}, 6, 8};        // Neck
 
-        // Initialize platforms (first one at bottom right, others spaced
-        // leftward)
         float startX = screenWidth - platforms[0].width;
         float spacing = 220.0f;
 
         for (int i = 0; i < NUM_PLATFORMS; i++)
         {
             float platformX = startX - i * spacing;
-            // Random y position between screenHeight and screenHeight - 150
             float minY = screenHeight - 250;
             float maxY = screenHeight - 50;
             float platformY = (float)GetRandomValue(minY, maxY);
@@ -613,6 +599,21 @@ int checkAndClearLines()
 
 int main()
 {
+    loadScoresFromFile();
+
+    insertScore("PMG", 60);
+    insertScore("Thomas", 70);
+
+    saveScoresToFile();
+
+    ScoreEntry *latestScores = getScores();
+
+    printf("Top %d Scores:\n", MAX_SCORES);
+    for (int i = 0; i < MAX_SCORES; i++)
+    {
+        printf("%d. %s - %d\n", i + 1, latestScores[i].name, latestScores[i].linesCleared);
+    }
+
     srand(time(0));
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
 
@@ -625,7 +626,7 @@ int main()
     SetTargetFPS(60);
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
 
-    // Initialize stars at startup
+    // initialize stars
     for (int i = 0; i < MAX_STARS; i++)
     {
         stars[i].x = GetRandomValue(0, screenWidth);
@@ -710,9 +711,13 @@ int main()
             if (IsKeyPressed(KEY_ENTER))
             {
                 PlaySound(levelStartSound);
+                insertScore("Player", linesClearedTotal); // Save lines cleared
+                saveScoresToFile();
+
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
                         grid[y][x] = 0;
+
                 score = 0;
                 level = 1;
                 linesClearedTotal = 0;
@@ -724,6 +729,8 @@ int main()
             }
             if (IsKeyPressed(KEY_M))
             {
+                insertScore("Player", linesClearedTotal); // Save lines cleared
+                saveScoresToFile();
                 gameState = MENU;
                 gameOver = false;
             }
@@ -976,6 +983,7 @@ void UpdateGame()
     if ((currentPiece.pieceState != BOTTOMED && fallTimer >= fallSpeed) || currentPiece.pieceState == BOTTOMED)
     {
         fallTimer = 0.0f;
+
         if (canMoveDown(currentPiece))
             moveDown(currentPiece);
         else
@@ -1320,12 +1328,14 @@ void UpdateDrawFrame(float gameTime)
         ClearBackground(BLACK);
         DrawTextEx(font, "Game Over",
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Game Over", 50, 1).x / 2,
-                             (float)screenHeight / 2 - 40},
-                   40, 1, WHITE);
+                             (float)screenHeight / 2 - 50},
+                   50, 1, WHITE);
         DrawText("Press [ENTER] to Restart", screenWidth / 2 - MeasureText("Press [ENTER] to Restart", 20) / 2,
                  screenHeight / 2 + 10, 20, WHITE);
         DrawText("Press [M] to return to Menu", screenWidth / 2 - MeasureText("Press [M] to return to Menu", 20) / 2,
                  screenHeight / 2 + 40, 20, WHITE);
+        DrawText(TextFormat("Lines Cleared: %i", linesClearedTotal),
+                 screenWidth / 2 - MeasureText("Lines Cleared: XX", 20) / 2 - 7, screenHeight / 2 + 77, 25, WHITE);
         break;
     }
     EndDrawing();
