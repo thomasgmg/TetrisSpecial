@@ -52,6 +52,10 @@ float pulseTimer = 0.0f;
 bool showPulseEffect = false;
 float const PULSE_DURATION = 2.5f;
 
+bool isElectrocuted = false;
+float electrocutionTimer = 0.0f;
+const float ELECTROCUTION_DURATION = 2.0f;
+
 struct Unit
 {
     Vector2 position;
@@ -178,6 +182,13 @@ void StartScreenShake()
     shakeTimer = SHAKE_DURATION;
 }
 
+void CreateElectrocutionEffect(Vector2 position)
+{
+    isElectrocuted = true;
+    electrocutionTimer = ELECTROCUTION_DURATION;
+    StartScreenShake();
+}
+
 void CreateDoorHitEffect(Vector2 position)
 {
     showPulseEffect = true;
@@ -226,6 +237,17 @@ void UpdateLevelTransition(float deltaTime)
         }
         return;
     }
+    if (isElectrocuted)
+    {
+        electrocutionTimer -= deltaTime;
+        if (electrocutionTimer <= 0.0f)
+        {
+            gameOver = true;
+            gameState = GAME_OVER;
+            isElectrocuted = false;
+        }
+        return;
+    }
 
     const float GRAVITY = 500.0f;
     player.velocity.y += GRAVITY * deltaTime;
@@ -261,6 +283,12 @@ void UpdateLevelTransition(float deltaTime)
 
     float boundingWidth = 24.0f;
     float boundingHeight = 50.0f;
+    if (player.position.x - boundingWidth / 2 < 0 || player.position.x + boundingWidth / 2 > screenWidth)
+    {
+        Vector2 playerCenter = {player.position.x, player.position.y};
+        CreateElectrocutionEffect(playerCenter);
+        return;
+    }
 
     Rectangle playerRect = {player.position.x - boundingWidth / 2, player.position.y - boundingHeight / 2,
                             boundingWidth, boundingHeight};
@@ -421,8 +449,7 @@ void UpdateDrawParticles(float deltaTime)
         // Draw particle
         Color particleColor = p.color;
         particleColor.a = (unsigned char)(p.alpha * 255);
-        DrawRectanglePro({p.position.x, p.position.y, p.size, p.size}, {p.size / 2, p.size / 2},
-                         GetTime() * 90, // Rotate particles over time
+        DrawRectanglePro({p.position.x, p.position.y, p.size, p.size}, {p.size / 2, p.size / 2}, GetTime() * 90,
                          particleColor);
 
         // Remove dead particles
@@ -1277,30 +1304,36 @@ void UpdateDrawFrame(float gameTime)
             {
                 Vector2 unitPos = {player.position.x + player.units[i].position.x - player.unitSize / 2,
                                    player.position.y + player.units[i].position.y - player.unitSize / 2};
+                Color drawColor = player.units[i].color;
+                if (isElectrocuted)
+                {
+                    drawColor = (fmod(GetTime(), 0.2f) < 0.1f) ? YELLOW : BLUE;
+                    drawColor.a = (unsigned char)(255 * (electrocutionTimer / ELECTROCUTION_DURATION));
+                }
 
                 if (i == 0)
                 {
                     Rectangle headRect = {unitPos.x - player.units[i].width / 2, unitPos.y - player.units[i].height / 2,
                                           player.units[i].width, player.units[i].height};
-                    DrawRectangleRounded(headRect, 0.8f, 8, player.units[i].color);
+                    DrawRectangleRounded(headRect, 0.8f, 8, drawColor);
                 }
                 else if (i == 2)
                 {
                     Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
                     DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
-                                     player.units[i].color);
+                                     drawColor);
                 }
                 else if (i == 3)
                 {
                     Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
                     DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
-                                     player.units[i].color);
+                                     drawColor);
                 }
                 else
                 {
                     Rectangle rect = {unitPos.x - player.units[i].width / 2, unitPos.y - player.units[i].height / 2,
                                       player.units[i].width, player.units[i].height};
-                    DrawRectangleRec(rect, player.units[i].color);
+                    DrawRectangleRec(rect, drawColor);
                 }
             }
         }
