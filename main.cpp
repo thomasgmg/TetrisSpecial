@@ -1053,7 +1053,7 @@ void DrawGame()
     DrawGrid();
     DrawText(TextFormat("Score: %i", score), 20, 60, 30, BLACK);
     DrawText(TextFormat("Level: %i", level), 20, 20, 30, BLACK);
-    DrawText(TextFormat("Lines: %i", linesClearedTotal), 20, 100, 30, BLACK);
+    DrawText(TextFormat("Lines: %i", linesClearedThisLevel), 20, 100, 30, BLACK);
 
     int linesNeeded = level * level;
     DrawText(TextFormat("Next Level: %i/%i lines", linesClearedThisLevel, linesNeeded), 20, 140, 20, DARKGRAY);
@@ -1066,7 +1066,7 @@ void DrawGame()
     {
         DrawText("Level Up!", 20, 180, 20, GREEN);
     }
-    float progress = (float)linesClearedTotal / linesNeeded;
+    float progress = (float)linesClearedThisLevel / linesNeeded;
     if (progress > 1.0f)
         progress = 1.0f;
     DrawRectangle(20, 200, 200, 20, GRAY);
@@ -1340,7 +1340,7 @@ void UpdateDrawFrame(float gameTime)
         DrawText("Press [M] to return to Menu", screenWidth / 2 - MeasureText("Press [M] to return to Menu", 20) / 2,
                  screenHeight / 2 + 40, 20, WHITE);
         DrawText(TextFormat("Lines Cleared: %i", linesClearedTotal),
-                 screenWidth / 2 - MeasureText("Lines Cleared: XX", 20) / 2 - 7, screenHeight / 2 + 77, 25, WHITE);
+                 screenWidth / 2 - MeasureText("Lines Cleared: XX", 20) / 2 - 10, screenHeight / 2 + 77, 25, WHITE);
         break;
     }
     EndDrawing();
