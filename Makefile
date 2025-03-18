@@ -22,7 +22,7 @@ else
 endif
 
 # Source and output
-SRC = main.cpp
+SRC = main.cpp score.cpp
 OUT = tetris$(EXT)
 
 # Build
@@ -35,5 +35,5 @@ package: all
 
 # Clean
 clean:
-	rm -f tetris tetris.exe tetris-linux.tar.gz tetris-windows.zip
+	rm -f tetris tetris.exe tetris-linux.tar.gz tetris-windows.zip tetris-macos.tar.gz
 
