@@ -33,6 +33,7 @@ float fallTimer = 0.0f;
 float fallSpeed = 0.3f;
 float fallVelocity = 0.0f;
 float fallAcceleration = 4.5f;
+float bottomedTimer = 0.0f;
 
 const int GRID_OFFSET_X = (screenWidth - GRID_HORIZONTAL_SIZE * BLOCK_SIZE) / 2;
 const int GRID_OFFSET_Y = (screenHeight - GRID_VERTICAL_SIZE * BLOCK_SIZE) / 2;
@@ -59,7 +60,8 @@ enum PieceState
     NEW,
     FALL,
     FREE_FALL,
-    BOTTOMED
+    BOTTOMED,
+    LOCKED
 };
 
 struct Tetromino
@@ -758,7 +760,7 @@ void spawnPiece(void)
     isInFreeFall = false;
     fallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.1f);
 
-    assert(currentPiece.pieceState == BOTTOMED || currentPiece.pieceState == NEW);
+    assert(currentPiece.pieceState == LOCKED || currentPiece.pieceState == NEW);
     currentPiece.pieceState = FALL;
 }
 
@@ -959,9 +961,7 @@ void UpdateGame()
 
     if (IsKeyPressed(KEY_DOWN))
     {
-        {
-            fallSpeed = 0.05f;
-        }
+        fallSpeed = 0.05f;
     }
 
     if (IsKeyPressed(KEY_SPACE))
@@ -973,14 +973,33 @@ void UpdateGame()
     float levelAdjustedFallSpeed = baseFallSpeed / (1.0f + (level - 1) * 0.1f);
 
     fallTimer += GetFrameTime();
-    if (fallTimer >= fallSpeed)
+    if ((currentPiece.pieceState != BOTTOMED && fallTimer >= fallSpeed) || currentPiece.pieceState == BOTTOMED)
     {
         fallTimer = 0.0f;
         if (canMoveDown(currentPiece))
             moveDown(currentPiece);
         else
         {
-            currentPiece.pieceState = BOTTOMED;
+            if (currentPiece.pieceState == BOTTOMED)
+            {
+                bottomedTimer += GetFrameTime();
+            }
+            else
+            {
+                currentPiece.pieceState = BOTTOMED;
+            }
+
+            // check timer
+            if (bottomedTimer < 0.2f)
+            {
+                return;
+            }
+            else
+            {
+                bottomedTimer = 0.0f;
+                currentPiece.pieceState = LOCKED;
+            }
+
             for (int i = 0; i < currentPiece.size; i++)
             {
                 int x = (int)currentPiece.units[i].position.x;
@@ -1332,14 +1351,15 @@ Vector2 toGrid(Vector2 position)
 
 bool canMoveHorizontally(Tetromino currentPiece, int amount)
 {
-    if (isInFreeFall)
+    if (isInFreeFall && currentPiece.pieceState != BOTTOMED)
     {
         return false;
     }
 
     for (int i = 0; i < currentPiece.size; i++)
     {
-        if (currentPiece.units[i].position.y >= GRID_VERTICAL_SIZE - 1)
+        // check Y
+        if (currentPiece.pieceState != BOTTOMED && currentPiece.units[i].position.y >= GRID_VERTICAL_SIZE - 1)
         {
             return false; // No lateral movement if touching ground
         }
@@ -1350,6 +1370,7 @@ bool canMoveHorizontally(Tetromino currentPiece, int amount)
         Vector2 newPos = currentPiece.units[i].position;
         newPos.x += amount;
 
+        // check X
         if (newPos.x < 0 || newPos.x >= GRID_HORIZONTAL_SIZE)
         {
             return false;

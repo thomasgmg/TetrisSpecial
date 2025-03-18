@@ -14,7 +14,7 @@ ifeq ($(OS),Linux)
 else ifeq ($(OS),Darwin)  # Darwin is the macOS kernel name
     LDFLAGS = $(LDFLAGS_MACOS)
     EXT =
-    ARCHIVE_CMD = tar -czf arkanoid-macos.tar.gz $(OUT) README.md resources
+    ARCHIVE_CMD = tar -czf tetris-macos.tar.gz $(OUT) README.md resources
 else
     LDFLAGS = $(LDFLAGS_WINDOWS)
     EXT = .exe
