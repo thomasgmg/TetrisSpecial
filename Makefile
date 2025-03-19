@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = g++
-CFLAGS = -Wall -Og -g -Iinclude/
+CFLAGS = -std=c++11 -Wall -Og -g -Iinclude/
 LDFLAGS_LINUX = lib/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11
 LDFLAGS_WINDOWS = lib/libraylib-win64.a -lopengl32 -lgdi32 -lwinmm
 LDFLAGS_MACOS = lib/libraylib-macos.a -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
