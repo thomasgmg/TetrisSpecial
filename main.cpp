@@ -1140,7 +1140,7 @@ void UpdateDrawFrame(float gameTime)
                    30, 1, WHITE);
         //
         // Draw mute/unmute button
-        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
+        DrawText("Sound:", muteButton.x + 7, muteButton.y - 15, 17, WHITE);
         DrawRectangleRec(muteButton,
                          isMuted ? RED : GREEN); // Red when muted, Green when unmuted
         DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
@@ -1229,7 +1229,7 @@ void UpdateDrawFrame(float gameTime)
         }
         //
         // Draw mute/unmute button
-        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
+        DrawText("Sound:", muteButton.x + 7, muteButton.y - 15, 17, WHITE);
         DrawRectangleRec(muteButton,
                          isMuted ? RED : GREEN); // Red when muted, Green when unmuted
         DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
@@ -1362,7 +1362,7 @@ void UpdateDrawFrame(float gameTime)
                  screenWidth / 2 - MeasureText("Lines Cleared: XX", 20) / 2 - 10, screenHeight / 2 + 77, 25, WHITE);
 
         // Draw mute/unmute button
-        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
+        DrawText("Sound:", muteButton.x + 7, muteButton.y - 15, 17, WHITE);
         DrawRectangleRec(muteButton,
                          isMuted ? RED : GREEN); // Red when muted, Green when unmuted
         DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
