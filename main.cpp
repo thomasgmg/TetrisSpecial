@@ -7,9 +7,6 @@
 #include <ctime>
 #include <stdlib.h>
 
-// Settings
-bool const AUDIO_ENABLED = true;
-
 Font font;
 
 int const GRID_HORIZONTAL_SIZE = 16;
@@ -20,6 +17,11 @@ int const TOTAL_PIECES_TYPES = 7;
 
 int const screenWidth = 1150;
 int const screenHeight = 594;
+
+// Settings
+bool audioEnabled = true;
+Rectangle muteButton = {(float)screenWidth - 80, 40, 80, 50};
+bool isMuted = false;
 
 int const MAX_STARS = 25;
 Vector2 stars[MAX_STARS];
@@ -101,7 +103,6 @@ enum GameState
     MENU,
     MANUAL,
     PLAYING,
-    LEVEL_UP,
     LEVEL_TRANSITION,
     GAME_OVER
 };
@@ -179,6 +180,27 @@ void moveDown(Tetromino &currentPiece);
 int score = 0;
 bool justClearedGrid = false;
 
+void UpdateAudioMute()
+{
+    Vector2 mousePoint = GetMousePosition();
+    // Check if the mute button is clicked
+    if (CheckCollisionPointRec(mousePoint, muteButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        isMuted = !isMuted; // Toggle mute state
+
+        if (isMuted)
+        {
+            // Mute audio
+            SetMasterVolume(0.0f); // Set volume to 0
+        }
+        else
+        {
+            // Unmute audio
+            SetMasterVolume(1.0f); // Restore full volume
+        }
+    }
+}
+
 void StartScreenShake()
 {
     screenShake = true;
@@ -198,7 +220,8 @@ void CreateDoorHitEffect(Vector2 position)
     pulseTimer = 3.5f;
     StartScreenShake();
 
-    PlaySound(doorHitSound);
+    if (audioEnabled && !isMuted)
+        PlaySound(doorHitSound);
 
     int particlesToSpawn = 777;
     for (int i = 0; i < particlesToSpawn && particleCount < MAX_PARTICLES; i++)
@@ -325,7 +348,7 @@ void UpdateLevelTransition(float deltaTime)
 
     if (IsKeyPressed(KEY_SPACE) && !player.isJumping)
     {
-        player.velocity.y = -400.0f;
+        player.velocity.y = -450.0f;
         player.isJumping = true;
     }
 
@@ -654,13 +677,18 @@ int main()
     srand(time(0));
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
 
-    if (AUDIO_ENABLED)
+    InitAudioDevice();
+    levelStartSound = LoadSound("resources/level-Start-Sound.mp3");
+    SetSoundVolume(levelStartSound, 57.0f);
+    doorHitSound = LoadSound("resources/next-level.mp3");
+    SetSoundVolume(doorHitSound, 0.1f);
+    if (isMuted)
     {
-        InitAudioDevice();
-        levelStartSound = LoadSound("resources/level-Start-Sound.mp3");
-        SetSoundVolume(levelStartSound, 57.0f);
-        doorHitSound = LoadSound("resources/next-level.mp3");
-        SetSoundVolume(doorHitSound, 0.1f);
+        SetMasterVolume(0.0f); // Start muted if isMuted is true
+    }
+    else
+    {
+        SetMasterVolume(1.0f); // Start at full volume
     }
 
     SetTargetFPS(60);
@@ -682,7 +710,8 @@ int main()
         case MENU:
             if (IsKeyPressed(KEY_ENTER))
             {
-                PlaySound(levelStartSound);
+                if (audioEnabled && !isMuted)
+                    PlaySound(levelStartSound);
                 gameState = PLAYING;
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
@@ -710,7 +739,8 @@ int main()
         case MANUAL:
             if (IsKeyPressed(KEY_ENTER))
             {
-                PlaySound(levelStartSound);
+                if (audioEnabled && !isMuted)
+                    PlaySound(levelStartSound);
                 gameState = PLAYING;
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
@@ -742,17 +772,11 @@ int main()
             if (IsKeyPressed('M'))
                 gameState = MENU;
 
-        case LEVEL_UP:
-            if (IsKeyPressed('S'))
-            {
-                gameState = PLAYING;
-            }
-            break;
-
         case GAME_OVER:
             if (IsKeyPressed(KEY_ENTER))
             {
-                PlaySound(levelStartSound);
+                if (audioEnabled && !isMuted)
+                    PlaySound(levelStartSound);
                 insertScore("Player", linesClearedTotal); // Save lines cleared
                 saveScoresToFile();
 
@@ -1112,6 +1136,12 @@ void UpdateDrawFrame(float gameTime)
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2,
                              (float)screenHeight / 2 + 80},
                    30, 1, WHITE);
+        //
+        // Draw mute/unmute button
+        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
+        DrawRectangleRec(muteButton,
+                         isMuted ? RED : GREEN); // Red when muted, Green when unmuted
+        DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
         break;
     }
 
@@ -1195,6 +1225,12 @@ void UpdateDrawFrame(float gameTime)
                                  (float)screenHeight / 2 - 20},
                        40, 1, BLACK);
         }
+        //
+        // Draw mute/unmute button
+        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
+        DrawRectangleRec(muteButton,
+                         isMuted ? RED : GREEN); // Red when muted, Green when unmuted
+        DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
         break;
 
     case LEVEL_TRANSITION: {
@@ -1310,17 +1346,6 @@ void UpdateDrawFrame(float gameTime)
         break;
     }
 
-    case LEVEL_UP:
-        ClearBackground(LIGHTGRAY);
-        DrawGame();
-        DrawTextEx(
-            font, "Level Up! Press <S> to continue",
-            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Level Up! Press <S> to continue", 40, 1).x / 2,
-                      (float)screenHeight / 2 - 20},
-            40, 1, DARKGREEN);
-        DrawText(TextFormat("Timer: %.1f / %.1f", transitionTimer, TRANSITION_DURATION), 20, 20, 20, WHITE);
-        break;
-
     case GAME_OVER:
         ClearBackground(BLACK);
         DrawTextEx(font, "Game Over",
@@ -1333,8 +1358,17 @@ void UpdateDrawFrame(float gameTime)
                  screenHeight / 2 + 40, 20, WHITE);
         DrawText(TextFormat("Lines Cleared: %i", linesClearedTotal),
                  screenWidth / 2 - MeasureText("Lines Cleared: XX", 20) / 2 - 10, screenHeight / 2 + 77, 25, WHITE);
+
+        // Draw mute/unmute button
+        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
+        DrawRectangleRec(muteButton,
+                         isMuted ? RED : GREEN); // Red when muted, Green when unmuted
+        DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
         break;
     }
+
+    UpdateAudioMute();
+
     EndDrawing();
 }
 
