@@ -3,15 +3,15 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*' # Runs only when you push a tag like v1.0.0
+      - "v*" # Runs only when you push a tag like v1.0.0
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-    
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,6 +25,12 @@ jobs:
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         run: choco install make mingw --no-progress
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install make cmake
+          brew install raylib
 
       - name: Build (Linux)
         if: runner.os == 'Linux'
@@ -40,19 +46,31 @@ jobs:
         run: |
           mingw32-make package
 
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          make package
+
       - name: Upload Linux binary
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: arkanoid-linux
-          path: arkanoid-linux.tar.gz
+          name: tetris-linux
+          path: tetris-linux.tar.gz
 
       - name: Upload Windows binary
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: arkanoid-windows
-          path: arkanoid-windows.zip
+          name: tetris-windows
+          path: tetris-windows.zip
+
+      - name: Upload macOS binary
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tetris-macos
+          path: tetris-macos.tar.gz
 
   release:
     needs: build
@@ -69,4 +87,3 @@ jobs:
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-
