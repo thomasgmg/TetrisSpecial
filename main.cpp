@@ -100,13 +100,13 @@ Sound levelStartSound;
 
 enum GameState
 {
-    MENU,
+    HOME,
     MANUAL,
     PLAYING,
     LEVEL_TRANSITION,
     GAME_OVER
 };
-GameState gameState = MENU;
+GameState gameState = HOME;
 
 struct PlayerUnit
 {
@@ -707,7 +707,7 @@ int main()
 
         switch (gameState)
         {
-        case MENU:
+        case HOME:
             if (IsKeyPressed(KEY_ENTER))
             {
                 if (audioEnabled && !isMuted)
@@ -760,17 +760,19 @@ int main()
                     stars[i].y = GetRandomValue(0, screenHeight);
                 }
             }
+            if (IsKeyPressed('H'))
+                gameState = HOME;
 
         case PLAYING:
-            if (IsKeyPressed('M'))
-                gameState = MENU;
+            if (IsKeyPressed('H'))
+                gameState = HOME;
             break;
 
         case LEVEL_TRANSITION:
             if (IsKeyPressed('P'))
                 pause = !pause;
-            if (IsKeyPressed('M'))
-                gameState = MENU;
+            if (IsKeyPressed('H'))
+                gameState = HOME;
 
         case GAME_OVER:
             if (IsKeyPressed(KEY_ENTER))
@@ -794,11 +796,11 @@ int main()
                 gameOver = false;
                 gameState = PLAYING;
             }
-            if (IsKeyPressed(KEY_M))
+            if (IsKeyPressed('H'))
             {
                 insertScore("Player", linesClearedTotal); // Save lines cleared
                 saveScoresToFile();
-                gameState = MENU;
+                gameState = HOME;
                 gameOver = false;
             }
             break;
@@ -1104,7 +1106,7 @@ void UpdateDrawFrame(float gameTime)
 
     switch (gameState)
     {
-    case MENU: {
+    case HOME: {
         ClearBackground(BLACK);
         Vector2 textPos = {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, 40, 1).x / 2,
                            (float)screenHeight / 2 - 40};
@@ -1354,7 +1356,7 @@ void UpdateDrawFrame(float gameTime)
                    50, 1, WHITE);
         DrawText("Press [ENTER] to Restart", screenWidth / 2 - MeasureText("Press [ENTER] to Restart", 20) / 2,
                  screenHeight / 2 + 10, 20, WHITE);
-        DrawText("Press [M] to return to Menu", screenWidth / 2 - MeasureText("Press [M] to return to Menu", 20) / 2,
+        DrawText("Press [H] to return to Home", screenWidth / 2 - MeasureText("Press [M] to return to Menu", 20) / 2,
                  screenHeight / 2 + 40, 20, WHITE);
         DrawText(TextFormat("Lines Cleared: %i", linesClearedTotal),
                  screenWidth / 2 - MeasureText("Lines Cleared: XX", 20) / 2 - 10, screenHeight / 2 + 77, 25, WHITE);
