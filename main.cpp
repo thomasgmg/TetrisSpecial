@@ -7,6 +7,9 @@
 #include <ctime>
 #include <stdlib.h>
 
+// Settings
+bool const AUDIO_ENABLED = true;
+
 Font font;
 
 int const GRID_HORIZONTAL_SIZE = 16;
@@ -646,11 +649,14 @@ int main()
     srand(time(0));
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
 
-    InitAudioDevice();
-    levelStartSound = LoadSound("resources/level-Start-Sound.mp3");
-    SetSoundVolume(levelStartSound, 57.0f);
-    doorHitSound = LoadSound("resources/next-level.mp3");
-    SetSoundVolume(doorHitSound, 0.1f);
+    if (AUDIO_ENABLED)
+    {
+        InitAudioDevice();
+        levelStartSound = LoadSound("resources/level-Start-Sound.mp3");
+        SetSoundVolume(levelStartSound, 57.0f);
+        doorHitSound = LoadSound("resources/next-level.mp3");
+        SetSoundVolume(doorHitSound, 0.1f);
+    }
 
     SetTargetFPS(60);
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
