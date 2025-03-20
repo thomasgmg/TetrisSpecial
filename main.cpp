@@ -1440,9 +1440,13 @@ void UpdateDrawFrame(float gameTime)
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, jumpText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 165},
                    25, 1, WHITE);
+        DrawTextEx(font, doorText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, doorText, 25, 1).x / 2,
+                             (float)screenHeight / 2 + 190},
+                   25, 1, WHITE);
         DrawTextEx(font, timeText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, timeText, 25, 1).x / 2,
-                             (float)screenHeight / 2 + 190},
+                             (float)screenHeight / 2 + 215},
                    25, 1, WHITE);
         break;
     }
