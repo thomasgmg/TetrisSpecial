@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <ctime>
 #include <stdlib.h>
+// #include <string>
 
 Font font;
 
@@ -20,7 +21,7 @@ int const screenHeight = 594;
 
 // Settings
 bool audioEnabled = true;
-Rectangle muteButton = {(float)screenWidth - 80, 40, 80, 50};
+Rectangle muteButton = {(float)screenWidth - 80, 35, 80, 40};
 bool isMuted = false;
 
 int const MAX_STARS = 25;
@@ -101,12 +102,31 @@ Sound levelStartSound;
 enum GameState
 {
     HOME,
-    MANUAL,
+    HOW_TO_PLAY,
+    RULES,
     PLAYING,
     LEVEL_TRANSITION,
     GAME_OVER
 };
 GameState gameState = HOME;
+
+enum Language
+{
+    ENGLISH,
+    PORTUGUESE,
+    GERMAN
+};
+Language currentLanguage = ENGLISH;
+
+// Flag textures
+Texture2D flagPortugal;
+Texture2D flagGermany;
+Texture2D flagUK;
+
+// Flag buttons (increased size and spacing for better usability)
+Rectangle flagButtonPortugal = {20, screenHeight - 85, 100, 70};
+Rectangle flagButtonGermany = {140, screenHeight - 85, 100, 70};
+Rectangle flagButtonUK = {260, screenHeight - 85, 100, 70};
 
 struct PlayerUnit
 {
@@ -676,6 +696,9 @@ int main()
 
     srand(time(0));
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
+    flagPortugal = LoadTexture("resources/flag_portugal.jpeg");
+    flagGermany = LoadTexture("resources/flag_germany.jpeg");
+    flagUK = LoadTexture("resources/flag_uk.jpeg");
 
     InitAudioDevice();
     levelStartSound = LoadSound("resources/level-Start-Sound.mp3");
@@ -692,6 +715,7 @@ int main()
     }
 
     SetTargetFPS(60);
+
     font = LoadFontEx("resources/font.ttf", 96, 0, 0);
 
     // initialize stars
@@ -732,11 +756,14 @@ int main()
                 }
             }
 
-            else if (IsKeyPressed(KEY_SPACE))
-                gameState = MANUAL;
+            if (IsKeyPressed(KEY_SPACE))
+                gameState = HOW_TO_PLAY;
+
+            else if (IsKeyPressed('R'))
+                gameState = RULES;
             break;
 
-        case MANUAL:
+        case HOW_TO_PLAY:
             if (IsKeyPressed(KEY_ENTER))
             {
                 if (audioEnabled && !isMuted)
@@ -762,11 +789,41 @@ int main()
             }
             if (IsKeyPressed('H'))
                 gameState = HOME;
+            break;
 
-        case PLAYING:
+        case RULES:
+            if (IsKeyPressed(KEY_ENTER))
+            {
+                if (audioEnabled && !isMuted)
+                    PlaySound(levelStartSound);
+                gameState = PLAYING;
+                for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+                    for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                        grid[y][x] = 0;
+                score = 0;
+                level = 1;
+                linesClearedTotal = 0;
+                linesClearedThisLevel = 0;
+                fallSpeed = baseFallSpeed;
+                currentPiece.pieceState = NEW;
+                spawnPiece();
+                gameOver = false;
+
+                for (int i = 0; i < MAX_STARS; i++)
+                {
+                    stars[i].x = GetRandomValue(0, screenWidth);
+                    stars[i].y = GetRandomValue(0, screenHeight);
+                }
+            }
             if (IsKeyPressed('H'))
                 gameState = HOME;
             break;
+
+        case PLAYING:
+            if (IsKeyPressed('P'))
+                pause = !pause;
+            if (IsKeyPressed('H'))
+                gameState = HOME;
 
         case LEVEL_TRANSITION:
             if (IsKeyPressed('P'))
@@ -1060,6 +1117,24 @@ void UpdateGame()
     }
 }
 
+void UpdateLanguageSelection()
+{
+    Vector2 mousePoint = GetMousePosition();
+
+    if (CheckCollisionPointRec(mousePoint, flagButtonPortugal) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        currentLanguage = PORTUGUESE;
+    }
+    else if (CheckCollisionPointRec(mousePoint, flagButtonGermany) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        currentLanguage = GERMAN;
+    }
+    else if (CheckCollisionPointRec(mousePoint, flagButtonUK) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        currentLanguage = ENGLISH;
+    }
+}
+
 void DrawGame()
 {
     DrawGrid();
@@ -1100,140 +1175,504 @@ void DrawGame()
 void UpdateDrawFrame(float gameTime)
 {
     BeginDrawing();
-
-    const char *welcomeText = "Welcome to TETRIS SPECIAL";
-    const char *manualText = "User Manual";
+    UpdateLanguageSelection(); // Check for language button clicks
 
     switch (gameState)
     {
     case HOME: {
         ClearBackground(BLACK);
-        Vector2 textPos = {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, 40, 1).x / 2,
-                           (float)screenHeight / 2 - 40};
-
+        Vector2 textPos;
         float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
         int glowLayers = 3;
+
+        const char *languageText;
+        const char *welcomeText;
+        const char *startText;
+        const char *manualText;
+        const char *rulesText;
+        const char *hText;
+        const char *soundText;
+        const char *onOffText;
+
+        switch (currentLanguage)
+        {
+        case PORTUGUESE:
+            languageText = "Selecao da lingua:";
+            welcomeText = "Bem-vindo ao TETRIS ESPECIAL";
+            startText = "Pressione <ENTER> para Iniciar";
+            manualText = "Pressione <ESPACO> para ver Manual";
+            rulesText = "Pressione <R> para ver as Regras";
+            hText = "(Pode sempre pressionar <H> para voltar a este menu)";
+            soundText = "Som:";
+            onOffText = isMuted ? "DESLIGADO" : "LIGADO";
+            break;
+        case GERMAN:
+            languageText = "Waehle die Sprache:";
+            welcomeText = "Willkommen bei TETRIS SPECIAL";
+            startText = "Druecke <ENTER> zum Starten";
+            manualText = "Druecke <LEERTASTE> um das Handbuch zu sehen";
+            rulesText = "Duecke <R> um das Regelbuch zu sehen";
+            hText = "(Man kann jederzeit auf <H> druecken, um zurueck zu diesem Menu zu kommen)";
+            soundText = "Ton:";
+            onOffText = isMuted ? "AUS" : "AN";
+            break;
+        case ENGLISH:
+        default:
+            languageText = "Choose the language:";
+            welcomeText = "Welcome to TETRIS SPECIAL";
+            startText = "Press <ENTER> to Start";
+            manualText = "Press <SPACE> to go to the Manual";
+            rulesText = "Press <R> to go to the Rules";
+            hText = "(You can always press <H> to go back to this Menu)";
+            soundText = "Sound:";
+            onOffText = isMuted ? "OFF" : "ON";
+            break;
+        }
+
+        DrawTextEx(font, "By:", {(float)screenWidth / 2 - 570, (float)screenHeight / 2 - 280}, 25, 1, WHITE);
+        DrawTextEx(font, "Thomas Gilb de Moura Guedes (feat. Paulo Moura Guedes)",
+                   {(float)screenWidth / 2 - 570, (float)screenHeight / 2 - 250}, 25, 1, WHITE);
+
+        textPos = {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, 40, 1).x / 2,
+                   (float)screenHeight / 2 - 70};
 
         for (int i = glowLayers; i >= 1; i--)
         {
             float glowSize = 40 + i * 5 * glowScale;
             float glowAlpha = 0.3f - (i * 0.1f);
             Color glowColor = {255, 255, 0, (unsigned char)(glowAlpha * 255)};
-
             Vector2 glowPos = {(float)screenWidth / 2 - MeasureTextEx(font, welcomeText, glowSize, 1).x / 2,
-                               (float)screenHeight / 2 - 40 - i * 2}; // Slight offset upward
-
+                               (float)screenHeight / 2 - 70 - i * 2};
             DrawTextEx(font, welcomeText, glowPos, glowSize, 1, glowColor);
         }
 
-        // Main text on top
         DrawTextEx(font, welcomeText, textPos, 40, 1, WHITE);
+        DrawTextEx(font, languageText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, languageText, 25, 1).x / 2 - 430,
+                             (float)screenHeight / 2 + 170},
+                   25, 1, WHITE);
+        DrawTextEx(font, startText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, startText, 30, 1).x / 2,
+                             (float)screenHeight / 2 - 20},
+                   30, 1, WHITE);
+        DrawTextEx(font, manualText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, manualText, 30, 1).x / 2,
+                             (float)screenHeight / 2 + 20},
+                   30, 1, WHITE);
+        DrawTextEx(font, rulesText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, rulesText, 30, 1).x / 2,
+                             (float)screenHeight / 2 + 60},
+                   30, 1, WHITE);
+        DrawTextEx(
+            font, hText,
+            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, hText, 30, 1).x / 2, (float)screenHeight / 2 + 100},
+            30, 1, WHITE);
 
-        // "Press ENTER to Start" (unchanged)
-        DrawTextEx(font, "Press ENTER to Start",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2 + 70,
-                             (float)screenHeight / 2 + 40},
-                   30, 1, WHITE);
-        DrawTextEx(font, "Press SPACE to go to the Manual",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Start", 50, 1).x / 2,
-                             (float)screenHeight / 2 + 80},
-                   30, 1, WHITE);
-        //
         // Draw mute/unmute button
-        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
-        DrawRectangleRec(muteButton,
-                         isMuted ? RED : GREEN); // Red when muted, Green when unmuted
-        DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
+
+        DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
+        DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
+        DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
+
+        // Draw flag buttons
+        Rectangle sourceRectPortugal = {0, 0, (float)flagPortugal.width, (float)flagPortugal.height};
+        Rectangle destRectPortugal = {flagButtonPortugal.x, flagButtonPortugal.y, flagButtonPortugal.width,
+                                      flagButtonPortugal.height};
+        if (currentLanguage == PORTUGUESE)
+        {
+            // Add green glow effect
+            float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+            for (int i = 3; i >= 1; i--)
+            {
+                float glowSize = i * 5 * glowScale;
+                Color glowColor = {0, 255, 0, (unsigned char)(0.3f * 255 / i)};
+                DrawRectangleLinesEx({destRectPortugal.x - glowSize, destRectPortugal.y - glowSize,
+                                      destRectPortugal.width + 2 * glowSize, destRectPortugal.height + 2 * glowSize},
+                                     2, glowColor);
+            }
+        }
+        DrawTexturePro(flagPortugal, sourceRectPortugal, destRectPortugal, {0, 0}, 0.0f, WHITE);
+
+        Rectangle sourceRectGermany = {0, 0, (float)flagGermany.width, (float)flagGermany.height};
+        Rectangle destRectGermany = {flagButtonGermany.x, flagButtonGermany.y, flagButtonGermany.width,
+                                     flagButtonGermany.height};
+        if (currentLanguage == GERMAN)
+        {
+            // Add green glow effect
+            float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+            for (int i = 3; i >= 1; i--)
+            {
+                float glowSize = i * 5 * glowScale;
+                Color glowColor = {0, 255, 0, (unsigned char)(0.3f * 255 / i)};
+                DrawRectangleLinesEx({destRectGermany.x - glowSize, destRectGermany.y - glowSize,
+                                      destRectGermany.width + 2 * glowSize, destRectGermany.height + 2 * glowSize},
+                                     2, glowColor);
+            }
+        }
+        DrawTexturePro(flagGermany, sourceRectGermany, destRectGermany, {0, 0}, 0.0f, WHITE);
+
+        Rectangle sourceRectUK = {0, 0, (float)flagUK.width, (float)flagUK.height};
+        Rectangle destRectUK = {flagButtonUK.x, flagButtonUK.y, flagButtonUK.width, flagButtonUK.height};
+        if (currentLanguage == ENGLISH)
+        {
+            // Add green glow effect
+            float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+            for (int i = 3; i >= 1; i--)
+            {
+                float glowSize = i * 5 * glowScale;
+                Color glowColor = {0, 255, 0, (unsigned char)(0.3f * 255 / i)};
+                DrawRectangleLinesEx({destRectUK.x - glowSize, destRectUK.y - glowSize, destRectUK.width + 2 * glowSize,
+                                      destRectUK.height + 2 * glowSize},
+                                     2, glowColor);
+            }
+        }
+        DrawTexturePro(flagUK, sourceRectUK, destRectUK, {0, 0}, 0.0f, WHITE);
+
+        DrawRectangleLinesEx(destRectUK, 2, WHITE);
+        DrawRectangleLinesEx(destRectGermany, 2, WHITE);
+        DrawRectangleLinesEx(destRectPortugal, 2, WHITE);
         break;
     }
 
-    case MANUAL: {
+    case HOW_TO_PLAY: {
         ClearBackground(BLACK);
-
-        Vector2 textPos = {(float)screenWidth / 2 - MeasureTextEx(font, manualText, 40, 1).x / 2,
-                           (float)screenHeight / 2 - 240};
-
+        Vector2 textPos;
         float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
         int glowLayers = 3;
 
+        const char *manualText;
+        const char *playText;
+        const char *tetrisText = "Tetris:";
+        const char *moveText;
+        const char *rotateText;
+        const char *fallText;
+        const char *playerGameText;
+        const char *movePlayerText;
+        const char *jumpText;
+        const char *doorText;
+        const char *timeText;
+
+        switch (currentLanguage)
+        {
+        case PORTUGUESE:
+            manualText = "Manual do Usuario";
+            playText = "(Pressione ENTER para Jogar)";
+            moveText = "Use setas para mover";
+            rotateText = "Pressione <CIMA> para girar";
+            fallText = "Pressione <BAIXO> para queda rapida e <ESPACO> para queda livre";
+            playerGameText = "Jogo do Jogador:";
+            movePlayerText = "Use setas para mover";
+            jumpText = "Use <ESPACO> para pular";
+            doorText = "Move o jogador contra a porta para passar de nivel";
+            timeText = "So tem um tempo limitado para mover o jogador contra a porta (10s)";
+            break;
+        case GERMAN:
+            manualText = "Benutzerhandbuch";
+            playText = "(Druecke ENTER zum Spielen)";
+            moveText = "Pfeiltasten zum Bewegen verwenden";
+            rotateText = "Druecke <HOCH> zum Drehen";
+            fallText = "Druecke <RUNTER> fuer schnelles Fallen und <LEERTASTE> fuer "
+                       "freien Fall";
+            playerGameText = "Spielerspiel:";
+            movePlayerText = "Pfeiltasten zum Bewegen verwenden";
+            jumpText = "Verwende <LEERTASTE> zum Springen";
+            doorText = "Bewege den Spieler gegen die Tuer, um das Level zu bestehen";
+            timeText = "Man hat nur eine begrenzte Zeit den Spieler gegen die Tuer zu bewegen(10s) ";
+            break;
+        case ENGLISH:
+        default:
+            manualText = "User Manual";
+            playText = "(Press ENTER to Play)";
+            moveText = "Use arrows to move";
+            rotateText = "Press <UP> to rotate";
+            fallText = "Press <DOWN> for fast fall and <SPACE> for free fall";
+            playerGameText = "Player Game:";
+            movePlayerText = "Use arrows to move";
+            jumpText = "Use <SPACE> to jump";
+            doorText = "Move the player against the door to pass the level";
+            timeText = "You only have a limited time to move the player against the door(10s)";
+            break;
+        }
+
+        textPos = {(float)screenWidth / 2 - MeasureTextEx(font, manualText, 40, 1).x / 2,
+                   (float)screenHeight / 2 - 240};
+
         for (int i = glowLayers; i >= 1; i--)
         {
-            float glowSize = 40 + i * 5 * glowScale;
-            float glowAlpha = 0.3f - (i * 0.1f);
+            float glowSize = 40 + i * 10 * glowScale;
+            float glowAlpha = 0.3f - (i * 0.08f);
             Color glowColor = {255, 255, 0, (unsigned char)(glowAlpha * 255)};
-
             Vector2 glowPos = {(float)screenWidth / 2 - MeasureTextEx(font, manualText, glowSize, 1).x / 2,
-                               (float)screenHeight / 2 - 240 - i * 2}; // Slight offset upward
-
+                               (float)screenHeight / 2 - 240 - i * 2};
             DrawTextEx(font, manualText, glowPos, glowSize, 1, glowColor);
         }
         DrawTextEx(font, manualText, textPos, 40, 1, WHITE);
 
-        DrawTextEx(font, "(Press ENTER to Play)",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2,
+        DrawTextEx(font, playText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playText, 35, 1).x / 2,
                              (float)screenHeight / 2 - 105},
                    35, 1, WHITE);
-
-        DrawTextEx(font, "Tetris:",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 100,
+        DrawTextEx(font, tetrisText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, tetrisText, 35, 1).x / 2,
                              (float)screenHeight / 2 - 40},
                    35, 1, WHITE);
-        DrawTextEx(font, "Use arrows to move",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 50,
-                             (float)screenHeight / 2},
-                   25, 1, WHITE);
-        DrawTextEx(font, "Press <UP> to rotate",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 40,
+        DrawTextEx(
+            font, moveText,
+            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, moveText, 25, 1).x / 2, (float)screenHeight / 2}, 25,
+            1, WHITE);
+        DrawTextEx(font, rotateText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, rotateText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 25},
                    25, 1, WHITE);
-        DrawTextEx(font, "Press <Down> for fast fall and <Space> for free fall",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 - 130,
+        DrawTextEx(font, fallText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, fallText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 50},
                    25, 1, WHITE);
-
-        DrawTextEx(font, "Player Game:",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 70,
+        DrawTextEx(font, playerGameText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playerGameText, 35, 1).x / 2,
                              (float)screenHeight / 2 + 100},
                    35, 1, WHITE);
-        DrawTextEx(font, "Use arrows to move",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 50,
+        DrawTextEx(font, movePlayerText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, movePlayerText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 140},
                    25, 1, WHITE);
-        DrawTextEx(font, "Use <Space> to jump",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 + 50,
+        DrawTextEx(font, jumpText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, jumpText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 165},
                    25, 1, WHITE);
-        DrawTextEx(font, "Move the player against the door to pass the level",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Press ENTER to Play", 40, 1).x / 2 - 120,
+        DrawTextEx(font, timeText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, timeText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 190},
                    25, 1, WHITE);
         break;
     }
 
-    case PLAYING:
+    case RULES: {
+        ClearBackground(BLACK);
+        Vector2 textPos;
+        float glowScale = 2.0f + 0.1f * sinf(gameTime * 2.0f);
+        int glowLayers = 3;
+
+        const char *rulesText;
+        const char *playText;
+        const char *tetrisText = "Tetris:";
+        const char *fullLinesText;
+        const char *gridFullText;
+        const char *playerGameText;
+        const char *dieText;
+        const char *hitWallText;
+        const char *doorText;
+
+        switch (currentLanguage)
+        {
+        case PORTUGUESE:
+            rulesText = "Regras";
+            playText = "(Pressione ENTER para Jogar)";
+            fullLinesText = "Se uma linha inteira estiver cheia, ela sera removida";
+            gridFullText = "Se os Tetrominos ja nao caberem na grade, morreras";
+            playerGameText = "Jogo do Jogador:";
+            dieText = "Se caires entra as plataformas, morreras";
+            hitWallText = "Se moveres o jogador contra as paredes, morreras";
+            doorText = "Mova o jogador contra a porta para passar de nivel";
+            break;
+        case GERMAN:
+            rulesText = "Regeln";
+            playText = "(Druecke Enter zum Spielen)";
+            fullLinesText = "Wenn eine ganze Linie voll ist, wird sie geloescht";
+            gridFullText = "Wenn die Tetrominos nicht mehr ins Feld passen verlierst du";
+            playerGameText = "Spielerspiel";
+            dieText = "Wenn du zwischen die Platformen faellst stirbst du";
+            hitWallText = "Wenn du den Spieler gegen die Waende bewegst stirbst du";
+            doorText = "Bewege den Spieler gegen die Tuer, um das Level zu bestehen";
+            break;
+        case ENGLISH:
+        default:
+            rulesText = "Rules";
+            playText = "(Press ENTER to play)";
+            fullLinesText = "If a line is full it's deleted";
+            gridFullText = "If your Tetrominos are stacked to high, you die";
+            playerGameText = "Player Game:";
+            dieText = "If the player falls between the platforms you die";
+            hitWallText = "If you move the player against the walls you'll die";
+            doorText = "Move the player against the door to pass the level";
+            break;
+        }
+
+        textPos = {(float)screenWidth / 2 - MeasureTextEx(font, rulesText, 40, 1).x / 2, (float)screenHeight / 2 - 235};
+
+        for (int i = glowLayers; i >= 1; i--)
+        {
+            float glowSize = 40 + i * 5 * glowScale;
+            float glowAlpha = 0.3f - (i * 0.1f);
+            Color glowColor = {255, 255, 0, (unsigned char)(glowAlpha * 255)};
+            Vector2 glowPos = {(float)screenWidth / 2 - MeasureTextEx(font, rulesText, glowSize, 1).x / 2,
+                               (float)screenHeight / 2 - 240 - i * 2};
+            DrawTextEx(font, rulesText, glowPos, glowSize, 1, glowColor);
+        }
+        DrawTextEx(font, rulesText, textPos, 40, 1, WHITE);
+
+        DrawTextEx(font, playText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playText, 35, 1).x / 2,
+                             (float)screenHeight / 2 - 105},
+                   35, 1, WHITE);
+        DrawTextEx(font, tetrisText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, tetrisText, 35, 1).x / 2,
+                             (float)screenHeight / 2 - 40},
+                   35, 1, WHITE);
+        DrawTextEx(
+            font, playText,
+            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playText, 25, 1).x / 2, (float)screenHeight / 2}, 25,
+            1, WHITE);
+        DrawTextEx(font, fullLinesText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, fullLinesText, 25, 1).x / 2,
+                             (float)screenHeight / 2 + 25},
+                   25, 1, WHITE);
+        DrawTextEx(font, gridFullText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, gridFullText, 25, 1).x / 2,
+                             (float)screenHeight / 2 + 50},
+                   25, 1, WHITE);
+        DrawTextEx(font, playerGameText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playerGameText, 35, 1).x / 2,
+                             (float)screenHeight / 2 + 100},
+                   35, 1, WHITE);
+        DrawTextEx(font, dieText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, dieText, 25, 1).x / 2,
+                             (float)screenHeight / 2 + 140},
+                   25, 1, WHITE);
+        DrawTextEx(font, hitWallText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, hitWallText, 25, 1).x / 2,
+                             (float)screenHeight / 2 + 165},
+                   25, 1, WHITE);
+        DrawTextEx(font, playText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playText, 35, 1).x / 2,
+                             (float)screenHeight / 2 - 105},
+                   35, 1, WHITE);
+        DrawTextEx(font, doorText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, doorText, 35, 1).x / 2 + 110,
+                             (float)screenHeight / 2 + 190},
+                   25, 1, WHITE);
+        break;
+    }
+
+    case PLAYING: {
         ClearBackground(LIGHTGRAY);
         UpdateGame();
-        DrawGame();
-        DrawPiece(&currentPiece);
+        DrawGrid();
+
+        const char *scoreText;
+        const char *levelText;
+        const char *linesText;
+        const char *nextLevelText;
+        const char *advanceText;
+        const char *levelUpText;
+        const char *soundText;
+        const char *onOffText;
+        const char *pauseText;
+        const char *gameOverText;
+
+        switch (currentLanguage)
+        {
+        case PORTUGUESE:
+            scoreText = TextFormat("Pontuacao: %i", score);
+            levelText = TextFormat("Nivel: %i", level);
+            linesText = TextFormat("Linhas: %i", linesClearedThisLevel);
+            nextLevelText = TextFormat("Proximo Nivel: %i/%i linhas", linesClearedThisLevel, level * level);
+            advanceText = "Limpe linhas para avancar!";
+            levelUpText = "Subir de Nivel!";
+            soundText = "Som:";
+            onOffText = isMuted ? "DESLIGADO" : "LIGADO";
+            pauseText = "JOGO PAUSADO";
+            gameOverText = "Fim de Jogo";
+            break;
+        case GERMAN:
+            scoreText = TextFormat("Punkte: %i", score);
+            levelText = TextFormat("Stufe: %i", level);
+            linesText = TextFormat("Linien: %i", linesClearedThisLevel);
+            nextLevelText = TextFormat("Naechste Stufe: %i/%i Linien", linesClearedThisLevel, level * level);
+            advanceText = "Loesche Linien zum Fortfahren!";
+            levelUpText = "Stufe Aufstieg!";
+            soundText = "Ton:";
+            onOffText = isMuted ? "AUS" : "AN";
+            pauseText = "SPIEL PAUSIERT";
+            gameOverText = "Spiel Ende";
+            break;
+        case ENGLISH:
+        default:
+            scoreText = TextFormat("Score: %i", score);
+            levelText = TextFormat("Level: %i", level);
+            linesText = TextFormat("Lines: %i", linesClearedThisLevel);
+            nextLevelText = TextFormat("Next Level: %i/%i lines", linesClearedThisLevel, level * level);
+            advanceText = "Clear lines to advance!";
+            levelUpText = "Level Up!";
+            soundText = "Sound:";
+            onOffText = isMuted ? "OFF" : "ON";
+            pauseText = "GAME PAUSED";
+            gameOverText = "Game Over";
+            break;
+        }
+
+        DrawTextEx(font, scoreText, (Vector2){20, 60}, 30, 1, BLACK);
+        DrawTextEx(font, levelText, (Vector2){20, 20}, 30, 1, BLACK);
+        DrawTextEx(font, linesText, (Vector2){20, 100}, 30, 1, BLACK);
+        DrawTextEx(font, nextLevelText, (Vector2){20, 140}, 27, 1, DARKGRAY);
+
+        int linesNeeded = level * level;
+        if (linesClearedThisLevel < linesNeeded)
+        {
+            DrawTextEx(font, advanceText, (Vector2){20, 180}, 20, 1, GRAY);
+        }
+        else
+        {
+            DrawTextEx(font, levelUpText, (Vector2){20, 180}, 20, 1, GREEN);
+        }
+
+        float progress = (float)linesClearedThisLevel / linesNeeded;
+        if (progress > 1.0f)
+            progress = 1.0f;
+        DrawRectangle(20, 200, 200, 20, GRAY);
+        DrawRectangle(20, 200, 200 * progress, 20, DARKGREEN);
+
+        static float bonusTimer = 0.0f;
+        if (justClearedGrid)
+        {
+            bonusTimer = 1.0f;
+            justClearedGrid = false;
+        }
+        if (bonusTimer > 0)
+        {
+            const char *bonusText = currentLanguage == PORTUGUESE ? "+50 Bonus de Limpeza de Grade!"
+                                    : currentLanguage == GERMAN   ? "+50 Bonus fuer Gitterloesung!"
+                                                                  : "+50 Grid Clear Bonus!";
+            DrawTextEx(font, bonusText, (Vector2){(float)screenWidth / 2 - 135, (float)screenHeight / 2 + 5}, 25, 1,
+                       BLACK);
+            bonusTimer -= GetFrameTime();
+        }
+
+        DrawPiece(&currentPiece); // Fixed typo from ¤tPiece
         UpdateDrawParticles(GetFrameTime());
         DrawPulseEffect(GetFrameTime());
+
         if (pause)
-            DrawText("GAME PAUSED", screenWidth / 2 - MeasureText("GAME PAUSED", 40) / 2, screenHeight / 2 - 40, 40,
-                     BLACK);
+        {
+            DrawTextEx(font, pauseText,
+                       (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, pauseText, 40, 1).x / 2,
+                                 (float)screenHeight / 2 - 40},
+                       40, 1, BLACK);
+        }
         if (gameOver)
         {
-            DrawTextEx(font, "Game Over",
-                       (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Game Over", 50, 1).x / 2,
+            DrawTextEx(font, gameOverText,
+                       (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, gameOverText, 40, 1).x / 2,
                                  (float)screenHeight / 2 - 20},
                        40, 1, BLACK);
         }
-        //
+
         // Draw mute/unmute button
-        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
-        DrawRectangleRec(muteButton,
-                         isMuted ? RED : GREEN); // Red when muted, Green when unmuted
-        DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
+        DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
+        DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
+        DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
         break;
+    }
 
     case LEVEL_TRANSITION: {
         Vector2 shakeOffset = {0, 0};
@@ -1258,11 +1697,10 @@ void UpdateDrawFrame(float gameTime)
 
         UpdateLevelTransition(GetFrameTime());
 
-        // Draw platforms (rounded rectangles)
         for (int i = 0; i < NUM_PLATFORMS; i++)
         {
-            Rectangle platformRect = {platforms[i].position.x - platforms[i].width / 2 + shakeOffset.x,  // Center x
-                                      platforms[i].position.y - platforms[i].height / 2 + shakeOffset.y, // Center y
+            Rectangle platformRect = {platforms[i].position.x - platforms[i].width / 2 + shakeOffset.x,
+                                      platforms[i].position.y - platforms[i].height / 2 + shakeOffset.y,
                                       platforms[i].width, platforms[i].height};
             DrawRectangleRounded(platformRect, 1.2f, 8, MAROON);
         }
@@ -1270,17 +1708,14 @@ void UpdateDrawFrame(float gameTime)
         Rectangle doorRect = {door.position.x - door.width / 2 + shakeOffset.x, door.position.y - door.height / 2,
                               door.width + shakeOffset.y, door.height};
 
-        // Add a subtle shadow for depth
         Rectangle shadowRect = {doorRect.x + 10 + shakeOffset.x, doorRect.y + 5 + shakeOffset.y, doorRect.width,
                                 doorRect.height};
-        DrawRectangleRec(shadowRect, (Color){0, 0, 0, 50}); // Faint black shadow
+        DrawRectangleRec(shadowRect, (Color){0, 0, 0, 50});
 
-        // Door frame (slightly larger, darker outline)
         Rectangle frameRect = {doorRect.x - 4 + shakeOffset.x, doorRect.y - 4 + shakeOffset.y, doorRect.width + 8,
                                doorRect.height + 8};
         DrawRectangleRec(frameRect, (Color){139, 69, 19, 255});
 
-        // Main door body
         DrawRectangleRec(doorRect, (Color){165, 42, 42, 255});
 
         Rectangle topPanel = {doorRect.x + 4 + shakeOffset.x, doorRect.y + 4 + shakeOffset.y, doorRect.width - 8,
@@ -1288,7 +1723,8 @@ void UpdateDrawFrame(float gameTime)
         Rectangle bottomPanel = {doorRect.x + 4 + shakeOffset.x, doorRect.y + doorRect.height / 2 + 2 + shakeOffset.y,
                                  doorRect.width - 8, (doorRect.height - 12) / 2};
         DrawRectangleRec(topPanel, (Color){139, 69, 19, 255});
-        DrawRectangleRec(bottomPanel, (Color){139, 69, 19, 255});
+        DrawRectangleRec(bottomPanel, (Color){139, 69, 19, 255}); // Note: bottomPanel should be used here
+                                                                  // instead of customPanel
 
         Vector2 handlePos = {doorRect.x + doorRect.width - 6 + shakeOffset.x,
                              doorRect.y + doorRect.height * 0.6f + shakeOffset.y};
@@ -1314,13 +1750,7 @@ void UpdateDrawFrame(float gameTime)
                                           player.units[i].width, player.units[i].height};
                     DrawRectangleRounded(headRect, 0.8f, 8, drawColor);
                 }
-                else if (i == 2)
-                {
-                    Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
-                    DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
-                                     drawColor);
-                }
-                else if (i == 3)
+                else if (i == 2 || i == 3)
                 {
                     Rectangle armRect = {unitPos.x, unitPos.y, player.units[i].width, player.units[i].height};
                     DrawRectanglePro(armRect, {player.units[i].width / 2, player.units[i].height / 2}, 35.0f,
@@ -1338,39 +1768,100 @@ void UpdateDrawFrame(float gameTime)
         UpdateDrawParticles(GetFrameTime());
         DrawPulseEffect(GetFrameTime());
 
-        DrawText(TextFormat("Time Left: %.1f", transitionTimer >= 0 ? transitionTimer : 0.0f), 20, 20, 20, WHITE);
+        const char *timeText;
+        const char *pauseText;
+        switch (currentLanguage)
+        {
+        case PORTUGUESE:
+            timeText = TextFormat("Tempo Restante: %.1f", transitionTimer >= 0 ? transitionTimer : 0.0f);
+            pauseText = "JOGO PAUSADO";
+            break;
+        case GERMAN:
+            timeText = TextFormat("Verbleibende Zeit: %.1f", transitionTimer >= 0 ? transitionTimer : 0.0f);
+            pauseText = "SPIEL PAUSIERT";
+            break;
+        case ENGLISH:
+        default:
+            timeText = TextFormat("Time Left: %.1f", transitionTimer >= 0 ? transitionTimer : 0.0f);
+            pauseText = "GAME PAUSED";
+            break;
+        }
 
+        DrawTextEx(font, timeText, (Vector2){20, 20}, 20, 1, WHITE);
         if (pause)
         {
-            DrawText("GAME PAUSED", screenWidth / 2 - MeasureText("GAME PAUSED", 40) / 2, screenHeight / 2 - 40, 40,
-                     WHITE);
+            DrawTextEx(font, pauseText,
+                       (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, pauseText, 40, 1).x / 2,
+                                 (float)screenHeight / 2 - 40},
+                       40, 1, WHITE);
         }
         break;
     }
 
-    case GAME_OVER:
+    case GAME_OVER: {
         ClearBackground(BLACK);
-        DrawTextEx(font, "Game Over",
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, "Game Over", 50, 1).x / 2,
+        const char *gameOverText;
+        const char *restartText;
+        const char *homeText;
+        const char *linesText;
+        const char *soundText;
+        const char *onOffText;
+
+        switch (currentLanguage)
+        {
+        case PORTUGUESE:
+            gameOverText = "Fim de Jogo";
+            restartText = "Pressione [ENTER] para Reiniciar";
+            homeText = "Pressione [H] para voltar ao Inicio";
+            linesText = TextFormat("Linhas Limpas: %i", linesClearedTotal);
+            soundText = "Som:";
+            onOffText = isMuted ? "DESLIGADO" : "LIGADO";
+            break;
+        case GERMAN:
+            gameOverText = "Spiel Ende";
+            restartText = "Druecke [ENTER] zum Neustart";
+            homeText = "Druecke [H] fuer Home";
+            linesText = TextFormat("Geloeschte Linien: %i", linesClearedTotal);
+            soundText = "Ton:";
+            onOffText = isMuted ? "AUS" : "AN";
+            break;
+        case ENGLISH:
+        default:
+            gameOverText = "Game Over";
+            restartText = "Press [ENTER] to Restart";
+            homeText = "Press [H] to return to Home";
+            linesText = TextFormat("Lines Cleared: %i", linesClearedTotal);
+            soundText = "Sound:";
+            onOffText = isMuted ? "OFF" : "ON";
+            break;
+        }
+
+        DrawTextEx(font, gameOverText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, gameOverText, 50, 1).x / 2,
                              (float)screenHeight / 2 - 50},
                    50, 1, WHITE);
-        DrawText("Press [ENTER] to Restart", screenWidth / 2 - MeasureText("Press [ENTER] to Restart", 20) / 2,
-                 screenHeight / 2 + 10, 20, WHITE);
-        DrawText("Press [H] to return to Home", screenWidth / 2 - MeasureText("Press [M] to return to Menu", 20) / 2,
-                 screenHeight / 2 + 40, 20, WHITE);
-        DrawText(TextFormat("Lines Cleared: %i", linesClearedTotal),
-                 screenWidth / 2 - MeasureText("Lines Cleared: XX", 20) / 2 - 10, screenHeight / 2 + 77, 25, WHITE);
+        DrawTextEx(font, restartText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, restartText, 20, 1).x / 2,
+                             (float)screenHeight / 2 + 10},
+                   20, 1, WHITE);
+        DrawTextEx(font, homeText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, homeText, 20, 1).x / 2,
+                             (float)screenHeight / 2 + 40},
+                   20, 1, WHITE);
+        DrawTextEx(font, linesText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, linesText, 25, 1).x / 2 - 10,
+                             (float)screenHeight / 2 + 77},
+                   25, 1, WHITE);
 
         // Draw mute/unmute button
-        DrawText("Sound:", muteButton.x, muteButton.y - 15, 17, WHITE);
-        DrawRectangleRec(muteButton,
-                         isMuted ? RED : GREEN); // Red when muted, Green when unmuted
-        DrawText(isMuted ? "OFF" : "ON", muteButton.x + 20, muteButton.y + 15, 20, WHITE);
+        DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
+        DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
+        DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
         break;
+    }
     }
 
     UpdateAudioMute();
-
     EndDrawing();
 }
 
@@ -1379,6 +1870,9 @@ void UnloadGame()
     UnloadFont(font);
     UnloadSound(levelStartSound);
     UnloadSound(doorHitSound);
+    UnloadTexture(flagPortugal);
+    UnloadTexture(flagGermany);
+    UnloadTexture(flagUK);
     CloseAudioDevice();
 }
 
