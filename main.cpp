@@ -1350,6 +1350,7 @@ void UpdateDrawFrame(float gameTime)
         const char *movePlayerText;
         const char *jumpText;
         const char *doorText;
+        const char *timeText;
 
         switch (currentLanguage)
         {
@@ -1363,6 +1364,7 @@ void UpdateDrawFrame(float gameTime)
             movePlayerText = "Use setas para mover";
             jumpText = "Use <ESPACO> para pular";
             doorText = "Move o jogador contra a porta para passar de nivel";
+            timeText = "So tem um tempo limitado para mover o jogador contra a porta (10s)";
             break;
         case GERMAN:
             manualText = "Benutzerhandbuch";
@@ -1375,6 +1377,7 @@ void UpdateDrawFrame(float gameTime)
             movePlayerText = "Pfeiltasten zum Bewegen verwenden";
             jumpText = "Verwende <LEERTASTE> zum Springen";
             doorText = "Bewege den Spieler gegen die Tuer, um das Level zu bestehen";
+            timeText = "Man hat nur eine begrenzte Zeit den Spieler gegen die Tuer zu bewegen(10s) ";
             break;
         case ENGLISH:
         default:
@@ -1387,6 +1390,7 @@ void UpdateDrawFrame(float gameTime)
             movePlayerText = "Use arrows to move";
             jumpText = "Use <SPACE> to jump";
             doorText = "Move the player against the door to pass the level";
+            timeText = "You only have a limited time to move the player against the door(10s)";
             break;
         }
 
@@ -1435,6 +1439,10 @@ void UpdateDrawFrame(float gameTime)
         DrawTextEx(font, jumpText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, jumpText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 165},
+                   25, 1, WHITE);
+        DrawTextEx(font, timeText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, timeText, 25, 1).x / 2,
+                             (float)screenHeight / 2 + 190},
                    25, 1, WHITE);
         break;
     }
