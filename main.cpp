@@ -124,9 +124,9 @@ Texture2D flagGermany;
 Texture2D flagUK;
 
 // Flag buttons (increased size and spacing for better usability)
-Rectangle flagButtonPortugal = {20, screenHeight - 70, 100, 70};
-Rectangle flagButtonGermany = {140, screenHeight - 70, 100, 70};
-Rectangle flagButtonUK = {260, screenHeight - 70, 100, 70};
+Rectangle flagButtonPortugal = {20, screenHeight - 85, 100, 70};
+Rectangle flagButtonGermany = {140, screenHeight - 85, 100, 70};
+Rectangle flagButtonUK = {260, screenHeight - 85, 100, 70};
 
 struct PlayerUnit
 {
@@ -1199,20 +1199,20 @@ void UpdateDrawFrame(float gameTime)
         case PORTUGUESE:
             languageText = "Selecao da lingua:";
             welcomeText = "Bem-vindo ao TETRIS ESPECIAL";
-            startText = "Pressione ENTER para Iniciar";
-            manualText = "Pressione ESPACO para ver Manual";
-            rulesText = "Pressione R para ver as Regras";
-            hText = "(Pode sempre pressionar H para voltar a este menu)";
+            startText = "Pressione <ENTER> para Iniciar";
+            manualText = "Pressione <ESPACO> para ver Manual";
+            rulesText = "Pressione <R> para ver as Regras";
+            hText = "(Pode sempre pressionar <H> para voltar a este menu)";
             soundText = "Som:";
             onOffText = isMuted ? "DESLIGADO" : "LIGADO";
             break;
         case GERMAN:
             languageText = "Waehle die Sprache:";
             welcomeText = "Willkommen bei TETRIS SPECIAL";
-            startText = "Druecke ENTER zum Starten";
-            manualText = "Druecke LEERTASTE um das Handbuch zu sehen";
-            rulesText = "Duecke R um das Regelbuch zu sehen";
-            hText = "(Man kann jederzeit auf H druecken um zurueck zu diesem Menu zu kommen)";
+            startText = "Druecke <ENTER> zum Starten";
+            manualText = "Druecke <LEERTASTE> um das Handbuch zu sehen";
+            rulesText = "Duecke <R> um das Regelbuch zu sehen";
+            hText = "(Man kann jederzeit auf <H> druecken, um zurueck zu diesem Menu zu kommen)";
             soundText = "Ton:";
             onOffText = isMuted ? "AUS" : "AN";
             break;
@@ -1220,10 +1220,10 @@ void UpdateDrawFrame(float gameTime)
         default:
             languageText = "Choose the language:";
             welcomeText = "Welcome to TETRIS SPECIAL";
-            startText = "Press ENTER to Start";
-            manualText = "Press SPACE to go to the Manual";
-            rulesText = "Press R to go to the Rules";
-            hText = "(You can always press H to go back to this Menu)";
+            startText = "Press <ENTER> to Start";
+            manualText = "Press <SPACE> to go to the Manual";
+            rulesText = "Press <R> to go to the Rules";
+            hText = "(You can always press <H> to go back to this Menu)";
             soundText = "Sound:";
             onOffText = isMuted ? "OFF" : "ON";
             break;
@@ -1249,7 +1249,7 @@ void UpdateDrawFrame(float gameTime)
         DrawTextEx(font, welcomeText, textPos, 40, 1, WHITE);
         DrawTextEx(font, languageText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, languageText, 25, 1).x / 2 - 430,
-                             (float)screenHeight / 2 + 190},
+                             (float)screenHeight / 2 + 170},
                    25, 1, WHITE);
         DrawTextEx(font, startText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, startText, 30, 1).x / 2,
@@ -1278,16 +1278,56 @@ void UpdateDrawFrame(float gameTime)
         Rectangle sourceRectPortugal = {0, 0, (float)flagPortugal.width, (float)flagPortugal.height};
         Rectangle destRectPortugal = {flagButtonPortugal.x, flagButtonPortugal.y, flagButtonPortugal.width,
                                       flagButtonPortugal.height};
+        if (currentLanguage == PORTUGUESE)
+        {
+            // Add green glow effect
+            float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+            for (int i = 3; i >= 1; i--)
+            {
+                float glowSize = i * 5 * glowScale;
+                Color glowColor = {0, 255, 0, (unsigned char)(0.3f * 255 / i)};
+                DrawRectangleLinesEx({destRectPortugal.x - glowSize, destRectPortugal.y - glowSize,
+                                      destRectPortugal.width + 2 * glowSize, destRectPortugal.height + 2 * glowSize},
+                                     2, glowColor);
+            }
+        }
         DrawTexturePro(flagPortugal, sourceRectPortugal, destRectPortugal, {0, 0}, 0.0f, WHITE);
 
         Rectangle sourceRectGermany = {0, 0, (float)flagGermany.width, (float)flagGermany.height};
         Rectangle destRectGermany = {flagButtonGermany.x, flagButtonGermany.y, flagButtonGermany.width,
                                      flagButtonGermany.height};
+        if (currentLanguage == GERMAN)
+        {
+            // Add green glow effect
+            float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+            for (int i = 3; i >= 1; i--)
+            {
+                float glowSize = i * 5 * glowScale;
+                Color glowColor = {0, 255, 0, (unsigned char)(0.3f * 255 / i)};
+                DrawRectangleLinesEx({destRectGermany.x - glowSize, destRectGermany.y - glowSize,
+                                      destRectGermany.width + 2 * glowSize, destRectGermany.height + 2 * glowSize},
+                                     2, glowColor);
+            }
+        }
         DrawTexturePro(flagGermany, sourceRectGermany, destRectGermany, {0, 0}, 0.0f, WHITE);
 
         Rectangle sourceRectUK = {0, 0, (float)flagUK.width, (float)flagUK.height};
         Rectangle destRectUK = {flagButtonUK.x, flagButtonUK.y, flagButtonUK.width, flagButtonUK.height};
+        if (currentLanguage == ENGLISH)
+        {
+            // Add green glow effect
+            float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+            for (int i = 3; i >= 1; i--)
+            {
+                float glowSize = i * 5 * glowScale;
+                Color glowColor = {0, 255, 0, (unsigned char)(0.3f * 255 / i)};
+                DrawRectangleLinesEx({destRectUK.x - glowSize, destRectUK.y - glowSize, destRectUK.width + 2 * glowSize,
+                                      destRectUK.height + 2 * glowSize},
+                                     2, glowColor);
+            }
+        }
         DrawTexturePro(flagUK, sourceRectUK, destRectUK, {0, 0}, 0.0f, WHITE);
+
         DrawRectangleLinesEx(destRectUK, 2, WHITE);
         DrawRectangleLinesEx(destRectGermany, 2, WHITE);
         DrawRectangleLinesEx(destRectPortugal, 2, WHITE);
@@ -1318,10 +1358,10 @@ void UpdateDrawFrame(float gameTime)
             playText = "(Pressione ENTER para Jogar)";
             moveText = "Use setas para mover";
             rotateText = "Pressione <CIMA> para girar";
-            fallText = "Pressione <BAIXO> para queda rapida e <ESPAÇO> para queda livre";
+            fallText = "Pressione <BAIXO> para queda rapida e <ESPACO> para queda livre";
             playerGameText = "Jogo do Jogador:";
             movePlayerText = "Use setas para mover";
-            jumpText = "Use <ESPAÇO> para pular";
+            jumpText = "Use <ESPACO> para pular";
             doorText = "Move o jogador contra a porta para passar de nivel";
             break;
         case GERMAN:
@@ -1329,7 +1369,7 @@ void UpdateDrawFrame(float gameTime)
             playText = "(Druecke ENTER zum Spielen)";
             moveText = "Pfeiltasten zum Bewegen verwenden";
             rotateText = "Druecke <HOCH> zum Drehen";
-            fallText = "Druecke <RUNTER> für schnelles Fallen und <LEERTASTE> für "
+            fallText = "Druecke <RUNTER> fuer schnelles Fallen und <LEERTASTE> fuer "
                        "freien Fall";
             playerGameText = "Spielerspiel:";
             movePlayerText = "Pfeiltasten zum Bewegen verwenden";
@@ -1355,8 +1395,8 @@ void UpdateDrawFrame(float gameTime)
 
         for (int i = glowLayers; i >= 1; i--)
         {
-            float glowSize = 40 + i * 5 * glowScale;
-            float glowAlpha = 0.3f - (i * 0.1f);
+            float glowSize = 40 + i * 10 * glowScale;
+            float glowAlpha = 0.3f - (i * 0.08f);
             Color glowColor = {255, 255, 0, (unsigned char)(glowAlpha * 255)};
             Vector2 glowPos = {(float)screenWidth / 2 - MeasureTextEx(font, manualText, glowSize, 1).x / 2,
                                (float)screenHeight / 2 - 240 - i * 2};
@@ -1402,7 +1442,7 @@ void UpdateDrawFrame(float gameTime)
     case RULES: {
         ClearBackground(BLACK);
         Vector2 textPos;
-        float glowScale = 1.0f + 0.1f * sinf(gameTime * 2.0f);
+        float glowScale = 2.0f + 0.1f * sinf(gameTime * 2.0f);
         int glowLayers = 3;
 
         const char *rulesText;
@@ -1450,7 +1490,7 @@ void UpdateDrawFrame(float gameTime)
             break;
         }
 
-        textPos = {(float)screenWidth / 2 - MeasureTextEx(font, rulesText, 40, 1).x / 2, (float)screenHeight / 2 - 240};
+        textPos = {(float)screenWidth / 2 - MeasureTextEx(font, rulesText, 40, 1).x / 2, (float)screenHeight / 2 - 235};
 
         for (int i = glowLayers; i >= 1; i--)
         {
@@ -1500,9 +1540,10 @@ void UpdateDrawFrame(float gameTime)
                              (float)screenHeight / 2 - 105},
                    35, 1, WHITE);
         DrawTextEx(font, doorText,
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, doorText, 35, 1).x / 2 + 130,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, doorText, 35, 1).x / 2 + 110,
                              (float)screenHeight / 2 + 190},
                    25, 1, WHITE);
+        break;
     }
 
     case PLAYING: {
