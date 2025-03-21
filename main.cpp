@@ -246,6 +246,29 @@ bool CheckHighScore(int score)
     return false;
 }
 
+void drawHighScore()
+{
+    gameOver = true; // Load the scores first
+
+    loadScoresFromFile();
+
+    isHighScore = CheckHighScore(linesClearedTotal);
+
+    if (isHighScore)
+    {
+        // Reset name entry variables
+        playerName[0] = '\0';
+        playerNameLength = 0;
+        cursorBlinkTimer = 0.0f;
+        showCursor = true;
+        gameState = HIGH_SCORE_ENTRY;
+    }
+    else
+    {
+        gameState = GAME_OVER;
+    }
+}
+
 void StartScreenShake()
 {
     screenShake = true;
@@ -368,8 +391,9 @@ void UpdateLevelTransition(float deltaTime)
         if (electrocutionTimer <= 0.0f)
         {
             gameOver = true;
-            gameState = GAME_OVER;
             isElectrocuted = false;
+            drawHighScore();
+            return;
         }
         return;
     }
@@ -473,7 +497,7 @@ void UpdateLevelTransition(float deltaTime)
         if (player.position.y - boundingHeight / 2 > screenHeight)
         {
             gameOver = true;
-            gameState = GAME_OVER;
+            drawHighScore();
             return;
         }
     }
@@ -482,7 +506,7 @@ void UpdateLevelTransition(float deltaTime)
     if (transitionTimer <= 0.0f)
     {
         gameOver = true;
-        gameState = GAME_OVER;
+        drawHighScore();
     }
 }
 
@@ -1191,47 +1215,20 @@ void UpdateGame()
             // TODO don't go here if level up
             if (gameState == PLAYING)
             {
-                bool isGameOver = false;
+                spawnPiece();
+                fallSpeed = levelAdjustedFallSpeed;
+
+                // Check if the new piece overlaps with existing blocks (game over condition)
                 for (int i = 0; i < currentPiece.size; i++)
                 {
-                    if (currentPiece.units[i].position.y <= 0)
+                    int x = (int)currentPiece.units[i].position.x;
+                    int y = (int)currentPiece.units[i].position.y;
+                    if (grid[y][x] == 1) // New piece can't spawn
                     {
-                        isGameOver = true;
-                        break;
+                        gameOver = true;
+                        drawHighScore(); // Now call this to handle high score or game over
+                        return;
                     }
-                }
-                if (isGameOver)
-                {
-                    gameOver = true;
-
-                    // Load the scores first
-                    loadScoresFromFile();
-
-                    // Check if player got a high score
-                    isHighScore = CheckHighScore(linesClearedTotal);
-
-                    if (isHighScore)
-                    {
-                        // Reset name entry variables
-                        playerName[0] = '\0';
-                        playerNameLength = 0;
-
-                        cursorBlinkTimer = 0.0f;
-                        showCursor = true;
-
-                        // Go to high score entry screen
-                        gameState = HIGH_SCORE_ENTRY;
-                    }
-                    else
-                    {
-                        // No high score, go to game over
-                        gameState = GAME_OVER;
-                    }
-                }
-                else
-                {
-                    spawnPiece();
-                    fallSpeed = levelAdjustedFallSpeed;
                 }
             }
         }
