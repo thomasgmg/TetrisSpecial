@@ -885,52 +885,78 @@ int main()
                 cursorBlinkTimer = 0;
                 showCursor = !showCursor;
             }
-
-            // Handle keyboard input for name
-            int key = GetCharPressed();
-
-            // Check for backspace
-            if (IsKeyPressed(KEY_BACKSPACE) && playerNameLength > 0)
+            if (playerNameLength < NAME_LEN)
             {
-                playerNameLength--;
-                playerName[playerNameLength] = '\0';
-            }
-            // Add character if not at max length
-            else if (key > 0 && playerNameLength < NAME_LEN - 1)
-            {
-                // Only allow alphanumeric characters and space
-                if ((key >= 32 && key <= 125) && key != '/')
+                int key = GetCharPressed();
+
+                // Check for backspace
+                if (IsKeyPressed(KEY_BACKSPACE) && playerNameLength > 0)
                 {
-                    playerName[playerNameLength] = (char)key;
-                    playerNameLength++;
+                    playerNameLength--;
                     playerName[playerNameLength] = '\0';
+                }
+                // Add character if not at max length
+                else if (key > 0 && playerNameLength < NAME_LEN - 1)
+                {
+                    // Only allow alphanumeric characters and space
+                    if ((key >= 32 && key <= 125) && key != '/')
+                    {
+                        playerName[playerNameLength] = (char)key;
+                        playerNameLength++;
+                        playerName[playerNameLength] = '\0';
+                    }
                 }
             }
 
-            // Submit name when Enter is pressed
-            if (IsKeyPressed(KEY_ENTER) && playerNameLength > 0)
+            // Handle Enter key presses
+            if (IsKeyPressed(KEY_ENTER))
             {
-                if (audioEnabled && !isMuted)
-                    PlaySound(levelStartSound);
+                if (playerNameLength >= NAME_LEN)
+                {
+                    // Start new game
+                    if (audioEnabled && !isMuted)
+                        PlaySound(levelStartSound);
+                    for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+                        for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                            grid[y][x] = 0;
+                    score = 0;
+                    level = 1;
+                    linesClearedTotal = 0;
+                    linesClearedThisLevel = 0;
+                    fallSpeed = baseFallSpeed;
+                    currentPiece.pieceState = NEW;
+                    spawnPiece();
+                    gameOver = false;
+                    gameState = PLAYING;
 
-                // Save the score with the entered name
-                insertScore(playerName, linesClearedTotal);
-                saveScoresToFile();
+                    for (int i = 0; i < MAX_STARS; i++)
+                    {
+                        stars[i].x = GetRandomValue(0, screenWidth);
+                        stars[i].y = GetRandomValue(0, screenHeight);
+                    }
 
-                // Reset game
-                for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
-                    for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
-                        grid[y][x] = 0;
-
-                score = 0;
-                level = 1;
-                linesClearedTotal = 0;
-                linesClearedThisLevel = 0;
-                fallSpeed = baseFallSpeed;
-                currentPiece.pieceState = NEW;
-                spawnPiece();
-                gameOver = false;
+                    playerName[0] = '\0';
+                    playerNameLength = 0;
+                    showCursor = true;
+                }
+                else // First Enter: submit score
+                {
+                    // If no name entered, use default
+                    if (playerNameLength == 0)
+                    {
+                        strcpy(playerName, "Anonymous");
+                        playerNameLength = strlen(playerName);
+                    }
+                    insertScore(playerName, linesClearedTotal);
+                    saveScoresToFile();
+                    playerNameLength = NAME_LEN; // Use as flag to indicate submission
+                }
+            }
+            // Handle keyboard input for name
+            if (IsKeyPressed('H') && playerNameLength >= NAME_LEN)
+            {
                 gameState = HOME;
+                gameOver = false;
             }
             break;
         }
@@ -1974,7 +2000,7 @@ void UpdateDrawFrame(float gameTime)
         {
         case PORTUGUESE:
             highScoreText = "Novo Recorde!";
-            enterNameText = "Digite seu nome:";
+            enterNameText = "Insira o seu nome:";
             confirmText = "Pressione [ENTER] para confirmar";
             linesText = TextFormat("Linhas Limpas: %i", linesClearedTotal);
             soundText = "Som:";
@@ -2052,14 +2078,14 @@ void UpdateDrawFrame(float gameTime)
         switch (currentLanguage)
         {
         case PORTUGUESE:
-            highScoresTitle = "Melhores Pontuações";
+            highScoresTitle = "Melhores Pontuacoes:";
             break;
         case GERMAN:
-            highScoresTitle = "Bestenliste";
+            highScoresTitle = "Bestenliste:";
             break;
         case ENGLISH:
         default:
-            highScoresTitle = "Top Scores";
+            highScoresTitle = "Top Scores:";
             break;
         }
 
