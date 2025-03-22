@@ -2066,11 +2066,11 @@ void UpdateDrawFrame(float gameTime)
         DrawTextEx(font, confirmText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, confirmText, 20, 1).x / 2,
                              (float)screenHeight / 2 + 80},
-                   20, 1, LIGHTGRAY);
+                   25, 1, LIGHTGRAY);
         DrawTextEx(font, playText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playText, 20, 1).x / 2,
                              (float)screenHeight / 2 + 120},
-                   20, 1, LIGHTGRAY);
+                   25, 1, LIGHTGRAY);
 
         // Draw mute/unmute button
         DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
