@@ -1989,6 +1989,7 @@ void UpdateDrawFrame(float gameTime)
         const char *highScoreText;
         const char *enterNameText;
         const char *confirmText;
+        const char *playText;
         const char *linesText;
         const char *soundText;
         const char *onOffText;
@@ -1998,7 +1999,8 @@ void UpdateDrawFrame(float gameTime)
         case PORTUGUESE:
             highScoreText = "Novo Recorde!";
             enterNameText = "Insira o seu nome:";
-            confirmText = "Pressione [ENTER] para confirmar";
+            confirmText = "Pressione <ENTER> para confirmar";
+            playText = "Pressione <Enter> outra vez para jogar";
             linesText = TextFormat("Linhas Limpas: %i", linesClearedTotal);
             soundText = "Som:";
             onOffText = isMuted ? "DESLIGADO" : "LIGADO";
@@ -2006,7 +2008,8 @@ void UpdateDrawFrame(float gameTime)
         case GERMAN:
             highScoreText = "Neuer Highscore!";
             enterNameText = "Gib deinen Namen ein:";
-            confirmText = "Druecke [ENTER] zum Bestaetigen";
+            confirmText = "Druecke <ENTER> zum Bestaetigen";
+            playText = "Druecke noch einmal <Enter> zum Spielen";
             linesText = TextFormat("Geloeschte Linien: %i", linesClearedTotal);
             soundText = "Ton:";
             onOffText = isMuted ? "AUS" : "AN";
@@ -2015,7 +2018,8 @@ void UpdateDrawFrame(float gameTime)
         default:
             highScoreText = "New High Score!";
             enterNameText = "Enter your name:";
-            confirmText = "Press [ENTER] to confirm";
+            confirmText = "Press <ENTER> to confirm";
+            playText = "Press <ENTER> again to play";
             linesText = TextFormat("Lines Cleared: %i", linesClearedTotal);
             soundText = "Sound:";
             onOffText = isMuted ? "OFF" : "ON";
@@ -2062,6 +2066,10 @@ void UpdateDrawFrame(float gameTime)
         DrawTextEx(font, confirmText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, confirmText, 20, 1).x / 2,
                              (float)screenHeight / 2 + 80},
+                   20, 1, LIGHTGRAY);
+        DrawTextEx(font, playText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playText, 20, 1).x / 2,
+                             (float)screenHeight / 2 + 120},
                    20, 1, LIGHTGRAY);
 
         // Draw mute/unmute button
