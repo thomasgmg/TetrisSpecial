@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <ctime>
 #include <stdlib.h>
-// #include <string>
+#include <string.h>
 
 Font font;
 
@@ -23,6 +23,13 @@ int const screenHeight = 594;
 bool audioEnabled = true;
 Rectangle muteButton = {(float)screenWidth - 80, 35, 80, 40};
 bool isMuted = false;
+
+// High score entry variables
+char playerName[NAME_LEN] = "";
+int playerNameLength = 0;
+bool isHighScore = false;
+float cursorBlinkTimer = 0.0f;
+bool showCursor = true;
 
 int const MAX_STARS = 25;
 Vector2 stars[MAX_STARS];
@@ -106,7 +113,8 @@ enum GameState
     RULES,
     PLAYING,
     LEVEL_TRANSITION,
-    GAME_OVER
+    GAME_OVER,
+    HIGH_SCORE_ENTRY
 };
 GameState gameState = HOME;
 
@@ -218,6 +226,46 @@ void UpdateAudioMute()
             // Unmute audio
             SetMasterVolume(1.0f); // Restore full volume
         }
+    }
+}
+
+bool CheckHighScore(int score)
+{
+    ScoreEntry *scores = getScores();
+
+    // Check if score is higher than the lowest score on the list
+    // or if there are empty slots
+    for (int i = 0; i < MAX_SCORES; i++)
+    {
+        if (strcmp(scores[i].name, "Empty") == 0 || score > scores[i].linesCleared)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void drawHighScore()
+{
+    gameOver = true; // Load the scores first
+
+    loadScoresFromFile();
+
+    isHighScore = CheckHighScore(linesClearedTotal);
+
+    if (isHighScore)
+    {
+        // Reset name entry variables
+        playerName[0] = '\0';
+        playerNameLength = 0;
+        cursorBlinkTimer = 0.0f;
+        showCursor = true;
+        gameState = HIGH_SCORE_ENTRY;
+    }
+    else
+    {
+        gameState = GAME_OVER;
     }
 }
 
@@ -343,8 +391,9 @@ void UpdateLevelTransition(float deltaTime)
         if (electrocutionTimer <= 0.0f)
         {
             gameOver = true;
-            gameState = GAME_OVER;
             isElectrocuted = false;
+            drawHighScore();
+            return;
         }
         return;
     }
@@ -448,7 +497,7 @@ void UpdateLevelTransition(float deltaTime)
         if (player.position.y - boundingHeight / 2 > screenHeight)
         {
             gameOver = true;
-            gameState = GAME_OVER;
+            drawHighScore();
             return;
         }
     }
@@ -457,7 +506,7 @@ void UpdateLevelTransition(float deltaTime)
     if (transitionTimer <= 0.0f)
     {
         gameOver = true;
-        gameState = GAME_OVER;
+        drawHighScore();
     }
 }
 
@@ -679,13 +728,6 @@ int checkAndClearLines()
 
 int main()
 {
-    loadScoresFromFile();
-
-    insertScore("PMG", 60);
-    insertScore("Thomas", 70);
-
-    saveScoresToFile();
-
     ScoreEntry *latestScores = getScores();
 
     printf("Top %d Scores:\n", MAX_SCORES);
@@ -836,9 +878,8 @@ int main()
             {
                 if (audioEnabled && !isMuted)
                     PlaySound(levelStartSound);
-                insertScore("Player", linesClearedTotal); // Save lines cleared
-                saveScoresToFile();
 
+                // Not a high score, just reset game
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
                         grid[y][x] = 0;
@@ -855,8 +896,89 @@ int main()
             }
             if (IsKeyPressed('H'))
             {
-                insertScore("Player", linesClearedTotal); // Save lines cleared
-                saveScoresToFile();
+                gameState = HOME;
+                gameOver = false;
+            }
+            break;
+
+        case HIGH_SCORE_ENTRY:
+            // Blink the cursor
+            cursorBlinkTimer += GetFrameTime();
+            if (cursorBlinkTimer > 0.5f)
+            {
+                cursorBlinkTimer = 0;
+                showCursor = !showCursor;
+            }
+            if (playerNameLength < NAME_LEN)
+            {
+                int key = GetCharPressed();
+
+                // Check for backspace
+                if (IsKeyPressed(KEY_BACKSPACE) && playerNameLength > 0)
+                {
+                    playerNameLength--;
+                    playerName[playerNameLength] = '\0';
+                }
+                // Add character if not at max length
+                else if (key > 0 && playerNameLength < NAME_LEN - 1)
+                {
+                    // Only allow alphanumeric characters and space
+                    if ((key >= 32 && key <= 125) && key != '/')
+                    {
+                        playerName[playerNameLength] = (char)key;
+                        playerNameLength++;
+                        playerName[playerNameLength] = '\0';
+                    }
+                }
+            }
+
+            // Handle Enter key presses
+            if (IsKeyPressed(KEY_ENTER))
+            {
+                if (playerNameLength >= NAME_LEN)
+                {
+                    // Start new game
+                    if (audioEnabled && !isMuted)
+                        PlaySound(levelStartSound);
+                    for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+                        for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                            grid[y][x] = 0;
+                    score = 0;
+                    level = 1;
+                    linesClearedTotal = 0;
+                    linesClearedThisLevel = 0;
+                    fallSpeed = baseFallSpeed;
+                    currentPiece.pieceState = NEW;
+                    spawnPiece();
+                    gameOver = false;
+                    gameState = PLAYING;
+
+                    for (int i = 0; i < MAX_STARS; i++)
+                    {
+                        stars[i].x = GetRandomValue(0, screenWidth);
+                        stars[i].y = GetRandomValue(0, screenHeight);
+                    }
+
+                    playerName[0] = '\0';
+                    playerNameLength = 0;
+                    showCursor = true;
+                }
+                else // First Enter: submit score
+                {
+                    // If no name entered, use default
+                    if (playerNameLength == 0)
+                    {
+                        strcpy(playerName, "Anonymous");
+                        playerNameLength = strlen(playerName);
+                    }
+                    insertScore(playerName, linesClearedTotal);
+                    saveScoresToFile();
+                    playerNameLength = NAME_LEN; // Use as flag to indicate submission
+                }
+            }
+            // Handle keyboard input for name
+            if (IsKeyPressed('H') && playerNameLength >= NAME_LEN)
+            {
                 gameState = HOME;
                 gameOver = false;
             }
@@ -1093,24 +1215,20 @@ void UpdateGame()
             // TODO don't go here if level up
             if (gameState == PLAYING)
             {
-                bool isGameOver = false;
+                spawnPiece();
+                fallSpeed = levelAdjustedFallSpeed;
+
+                // Check if the new piece overlaps with existing blocks (game over condition)
                 for (int i = 0; i < currentPiece.size; i++)
                 {
-                    if (currentPiece.units[i].position.y <= 0)
+                    int x = (int)currentPiece.units[i].position.x;
+                    int y = (int)currentPiece.units[i].position.y;
+                    if (grid[y][x] == 1) // New piece can't spawn
                     {
-                        isGameOver = true;
-                        break;
+                        gameOver = true;
+                        drawHighScore(); // Now call this to handle high score or game over
+                        return;
                     }
-                }
-                if (isGameOver)
-                {
-                    gameOver = true;
-                    gameState = GAME_OVER;
-                }
-                else
-                {
-                    spawnPiece();
-                    fallSpeed = levelAdjustedFallSpeed;
                 }
             }
         }
@@ -1440,9 +1558,13 @@ void UpdateDrawFrame(float gameTime)
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, jumpText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 165},
                    25, 1, WHITE);
+        DrawTextEx(font, doorText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, doorText, 25, 1).x / 2,
+                             (float)screenHeight / 2 + 190},
+                   25, 1, WHITE);
         DrawTextEx(font, timeText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, timeText, 25, 1).x / 2,
-                             (float)screenHeight / 2 + 190},
+                             (float)screenHeight / 2 + 215},
                    25, 1, WHITE);
         break;
     }
@@ -1857,6 +1979,130 @@ void UpdateDrawFrame(float gameTime)
         DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
         DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
         DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
+        break;
+    }
+
+    case HIGH_SCORE_ENTRY: {
+        ClearBackground(BLACK);
+
+        // Language-specific text
+        const char *highScoreText;
+        const char *enterNameText;
+        const char *confirmText;
+        const char *playText;
+        const char *linesText;
+        const char *soundText;
+        const char *onOffText;
+
+        switch (currentLanguage)
+        {
+        case PORTUGUESE:
+            highScoreText = "Novo Recorde!";
+            enterNameText = "Insira o seu nome:";
+            confirmText = "Pressione <ENTER> para confirmar";
+            playText = "Pressione <Enter> outra vez para jogar";
+            linesText = TextFormat("Linhas Limpas: %i", linesClearedTotal);
+            soundText = "Som:";
+            onOffText = isMuted ? "DESLIGADO" : "LIGADO";
+            break;
+        case GERMAN:
+            highScoreText = "Neuer Highscore!";
+            enterNameText = "Gib deinen Namen ein:";
+            confirmText = "Druecke <ENTER> zum Bestaetigen";
+            playText = "Druecke noch einmal <Enter> zum Spielen";
+            linesText = TextFormat("Geloeschte Linien: %i", linesClearedTotal);
+            soundText = "Ton:";
+            onOffText = isMuted ? "AUS" : "AN";
+            break;
+        case ENGLISH:
+        default:
+            highScoreText = "New High Score!";
+            enterNameText = "Enter your name:";
+            confirmText = "Press <ENTER> to confirm";
+            playText = "Press <ENTER> again to play";
+            linesText = TextFormat("Lines Cleared: %i", linesClearedTotal);
+            soundText = "Sound:";
+            onOffText = isMuted ? "OFF" : "ON";
+            break;
+        }
+
+        // Draw high score header
+        DrawTextEx(font, highScoreText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, highScoreText, 50, 1).x / 2,
+                             (float)screenHeight / 2 - 110},
+                   50, 1, GOLD);
+
+        // Draw score
+        DrawTextEx(font, linesText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, linesText, 25, 1).x / 2,
+                             (float)screenHeight / 2 - 50},
+                   25, 1, WHITE);
+
+        // Draw enter name prompt
+        DrawTextEx(font, enterNameText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, enterNameText, 25, 1).x / 2,
+                             (float)screenHeight / 2 - 10},
+                   25, 1, WHITE);
+
+        // Draw input box
+        DrawRectangle(screenWidth / 2 - 150, screenHeight / 2 + 20, 300, 40, Color{50, 50, 50, 255});
+        DrawRectangleLinesEx((Rectangle){(float)screenWidth / 2 - 150, (float)screenHeight / 2 + 20, 300, 40}, 2, GOLD);
+
+        // Draw current name
+        DrawTextEx(font, playerName,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playerName, 30, 1).x / 2,
+                             (float)screenHeight / 2 + 25},
+                   30, 1, WHITE);
+
+        // Draw blinking cursor if text is less than max length
+        if (showCursor && playerNameLength < NAME_LEN - 1)
+        {
+            float cursorPosX = (float)screenWidth / 2 - MeasureTextEx(font, playerName, 30, 1).x / 2 +
+                               MeasureTextEx(font, playerName, 30, 1).x;
+            DrawTextEx(font, "_", (Vector2){cursorPosX, (float)screenHeight / 2 + 25}, 30, 1, WHITE);
+        }
+
+        // Draw confirmation text
+        DrawTextEx(font, confirmText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, confirmText, 20, 1).x / 2,
+                             (float)screenHeight / 2 + 80},
+                   25, 1, LIGHTGRAY);
+        DrawTextEx(font, playText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playText, 20, 1).x / 2,
+                             (float)screenHeight / 2 + 120},
+                   25, 1, LIGHTGRAY);
+
+        // Draw mute/unmute button
+        DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
+        DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
+        DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
+
+        // Draw top 5 scores on the right side
+        const char *highScoresTitle;
+
+        switch (currentLanguage)
+        {
+        case PORTUGUESE:
+            highScoresTitle = "Melhores Pontuacoes:";
+            break;
+        case GERMAN:
+            highScoresTitle = "Bestenliste:";
+            break;
+        case ENGLISH:
+        default:
+            highScoresTitle = "Top Scores:";
+            break;
+        }
+
+        DrawTextEx(font, highScoresTitle, (Vector2){screenWidth - 250, 150}, 25, 1, GOLD);
+
+        ScoreEntry *scores = getScores();
+        for (int i = 0; i < MAX_SCORES; i++)
+        {
+            DrawTextEx(font, TextFormat("%d. %s - %d", i + 1, scores[i].name, scores[i].linesCleared),
+                       (Vector2){screenWidth - 250, (float)190 + i * 30}, 20, 1, (i == 0) ? GOLD : WHITE);
+        }
+
         break;
     }
     }
