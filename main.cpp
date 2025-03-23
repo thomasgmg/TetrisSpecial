@@ -1089,6 +1089,9 @@ void UpdateGame()
     if (pause)
         return;
 
+    if (IsKeyPressed('C'))
+        return drawLevelTransition();
+
     if (IsKeyPressed(KEY_LEFT))
     {
         lateralTimer += GetFrameTime();
