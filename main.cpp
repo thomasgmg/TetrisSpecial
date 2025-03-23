@@ -1092,6 +1092,16 @@ void UpdateGame()
     if (IsKeyPressed('C'))
         return drawLevelTransition();
 
+    if (IsKeyPressed(KEY_ENTER))
+    {
+        for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+            for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                grid[y][x] = 0;
+        currentPiece.pieceState = NEW;
+        spawnPiece();
+        return;
+    }
+
     if (IsKeyPressed(KEY_LEFT))
     {
         lateralTimer += GetFrameTime();
