@@ -212,7 +212,8 @@ void UpdateAudioMute()
 {
     Vector2 mousePoint = GetMousePosition();
     // Check if the mute button is clicked
-    if (CheckCollisionPointRec(mousePoint, muteButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    if ((CheckCollisionPointRec(mousePoint, muteButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) ||
+        IsKeyPressed('M'))
     {
         isMuted = !isMuted; // Toggle mute state
 
