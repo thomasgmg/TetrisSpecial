@@ -24,6 +24,8 @@ bool audioEnabled = true;
 Rectangle muteButton = {(float)screenWidth - 80, 35, 80, 40};
 bool isMuted = false;
 
+bool isGrayBackground = false;
+
 // High score entry variables
 char playerName[NAME_LEN] = "";
 int playerNameLength = 0;
@@ -208,6 +210,11 @@ void moveDown(Tetromino &currentPiece);
 
 int score = 0;
 bool justClearedGrid = false;
+
+void gridBackground()
+{
+    isGrayBackground = !isGrayBackground;
+}
 
 void UpdateAudioMute()
 {
@@ -619,7 +626,9 @@ void DrawGrid()
     int gridX = GRID_OFFSET_X;
     int gridY = GRID_OFFSET_Y;
 
-    DrawRectangleLines(gridX, gridY, gridWidth, gridHeight, GRAY);
+    DrawRectangle(gridX, gridY, gridWidth, gridHeight, isGrayBackground ? GRAY : LIGHTGRAY);
+
+    DrawRectangleLines(gridX, gridY, gridWidth, gridHeight, BLACK);
 
     if (showGrid)
     {
@@ -636,7 +645,7 @@ void DrawGrid()
                 }
                 else
                 {
-                    DrawRectangleLines(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, GRAY);
+                    DrawRectangleLines(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, BLACK);
                 }
             }
         }
@@ -1116,6 +1125,9 @@ void UpdateGame()
 
     if (IsKeyPressed('G'))
         showGrid = !showGrid;
+
+    if (IsKeyPressed('T'))
+        gridBackground();
 
     if (IsKeyPressed('C'))
         return drawLevelTransition();
