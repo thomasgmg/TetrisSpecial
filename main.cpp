@@ -16,8 +16,13 @@ int const BLOCK_SIZE = 27;
 
 int const TOTAL_PIECES_TYPES = 7;
 
+int grid[GRID_VERTICAL_SIZE][GRID_HORIZONTAL_SIZE] = {0};
+int gridWidth = GRID_HORIZONTAL_SIZE * BLOCK_SIZE;
+int gridHeight = GRID_VERTICAL_SIZE * BLOCK_SIZE;
+bool showGrid = true;
+
 int const screenWidth = 1150;
-int const screenHeight = 594;
+int const screenHeight = gridHeight;
 
 // Settings
 bool audioEnabled = true;
@@ -59,9 +64,6 @@ float bottomedTimer = 0.0f;
 
 const int GRID_OFFSET_X = (screenWidth - GRID_HORIZONTAL_SIZE * BLOCK_SIZE) / 2;
 const int GRID_OFFSET_Y = (screenHeight - GRID_VERTICAL_SIZE * BLOCK_SIZE) / 2;
-
-int grid[GRID_VERTICAL_SIZE][GRID_HORIZONTAL_SIZE] = {0};
-bool showGrid = false;
 
 bool isMenu = true;
 bool gameOver = false;
@@ -140,10 +142,9 @@ Texture2D flagGermany;
 Texture2D flagUK;
 
 // Flag buttons (increased size and spacing for better usability)
-Rectangle flagButtonPortugal = {20, screenHeight - 85, 100, 70};
-Rectangle flagButtonGermany = {140, screenHeight - 85, 100, 70};
-Rectangle flagButtonUK = {260, screenHeight - 85, 100, 70};
-
+Rectangle flagButtonPortugal = {20, (float)screenHeight - 85, 100, 70};
+Rectangle flagButtonGermany = {140, (float)screenHeight - 85, 100, 70};
+Rectangle flagButtonUK = {260, (float)screenHeight - 85, 100, 70};
 struct PlayerUnit
 {
     Vector2 position;
@@ -227,24 +228,28 @@ void UpdateAudioMute()
     // Check if the mute button is clicked
     if ((CheckCollisionPointRec(mousePoint, muteButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) ||
         IsKeyPressed('M'))
-        {
-            isMuted = !isMuted; // Toggle mute state
+    {
+        isMuted = !isMuted; // Toggle mute state
 
-            if (isMuted)
-            {
-                // Mute audio
-                SetMasterVolume(0.0f); // Set volume to 0
-            }
-            else
-            {
-                // Unmute audio
-                SetMasterVolume(1.0f); // Restore full volume
-            }
+        if (isMuted)
+        {
+            // Mute audio
+            SetMasterVolume(0.0f); // Set volume to 0
         }
+        else
+        {
+            // Unmute audio
+            SetMasterVolume(1.0f); // Restore full volume
+        }
+    }
 }
 
 bool CheckHighScore(int score)
 {
+    if (linesClearedTotal <= 0)
+    {
+        return false;
+    }
     ScoreEntry *scores = getScores();
 
     // Check if score is higher than the lowest score on the list
@@ -624,14 +629,23 @@ void UpdateDrawParticles(float deltaTime)
     }
 }
 
+void DrawPiece(Tetromino *piece)
+{
+    for (int i = 0; i < piece->size; i++)
+    {
+        int screenX = GRID_OFFSET_X + (int)piece->units[i].position.x * BLOCK_SIZE;
+        int screenY = GRID_OFFSET_Y + (int)piece->units[i].position.y * BLOCK_SIZE;
+
+        DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, pieceColor);
+    }
+}
+
 void DrawGrid()
 {
-    int gridWidth = GRID_HORIZONTAL_SIZE * BLOCK_SIZE;
-    int gridHeight = GRID_VERTICAL_SIZE * BLOCK_SIZE;
     int gridX = GRID_OFFSET_X;
     int gridY = GRID_OFFSET_Y;
 
-    DrawRectangle(gridX, gridY, gridWidth, gridHeight, isGrayBackground ? gridDarkColor : gridBrightColor);
+    DrawRectangle(gridX, gridY, gridWidth, gridHeight, isGrayBackground ? gridBrightColor : gridDarkColor);
 
     if (showGrid)
     {
@@ -666,17 +680,6 @@ void DrawGrid()
         }
     }
     DrawRectangleLines(gridX, gridY, gridWidth, gridHeight, BLACK);
-}
-
-void DrawPiece(Tetromino *piece)
-{
-    for (int i = 0; i < piece->size; i++)
-    {
-        int screenX = GRID_OFFSET_X + (int)piece->units[i].position.x * BLOCK_SIZE;
-        int screenY = GRID_OFFSET_Y + (int)piece->units[i].position.y * BLOCK_SIZE;
-
-        DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, pieceColor);
-    }
 }
 
 int checkAndClearLines()
@@ -1024,6 +1027,7 @@ int main()
         }
         UpdateDrawFrame(gameTime);
     }
+    saveScoresToFile();
     UnloadGame();
     CloseWindow();
     return 0;
@@ -1311,10 +1315,7 @@ void DrawGame()
     {
         DrawText("Clear lines to advance!", 20, 180, 20, GRAY);
     }
-    else
-    {
-        DrawText("Level Up!", 20, 180, 20, GREEN);
-    }
+
     float progress = (float)linesClearedThisLevel / linesNeeded;
     if (progress > 1.0f)
         progress = 1.0f;
