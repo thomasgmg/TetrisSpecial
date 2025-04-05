@@ -24,7 +24,9 @@ bool audioEnabled = true;
 Rectangle muteButton = {(float)screenWidth - 80, 35, 80, 40};
 bool isMuted = false;
 
+// Themes
 bool isGrayBackground = false;
+Color pieceColor = MAROON;
 
 // High score entry variables
 char playerName[NAME_LEN] = "";
@@ -641,7 +643,7 @@ void DrawGrid()
 
                 if (grid[y][x] == 1)
                 {
-                    DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, MAROON);
+                    DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, pieceColor);
                 }
                 else
                 {
@@ -658,7 +660,7 @@ void DrawGrid()
             int screenY = GRID_OFFSET_Y + y * BLOCK_SIZE;
             if (grid[y][x] == 1)
             {
-                DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, MAROON);
+                DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, pieceColor);
             }
         }
     }
@@ -671,7 +673,7 @@ void DrawPiece(Tetromino *piece)
         int screenX = GRID_OFFSET_X + (int)piece->units[i].position.x * BLOCK_SIZE;
         int screenY = GRID_OFFSET_Y + (int)piece->units[i].position.y * BLOCK_SIZE;
 
-        DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, MAROON);
+        DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, pieceColor);
     }
 }
 
