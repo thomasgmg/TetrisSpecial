@@ -54,12 +54,13 @@ const int GRID_OFFSET_X = (screenWidth - GRID_HORIZONTAL_SIZE * BLOCK_SIZE) / 2;
 const int GRID_OFFSET_Y = (screenHeight - GRID_VERTICAL_SIZE * BLOCK_SIZE) / 2;
 
 int grid[GRID_VERTICAL_SIZE][GRID_HORIZONTAL_SIZE] = {0};
+bool showGrid = false;
 
 bool isMenu = true;
 bool gameOver = false;
 bool pause = false;
 bool isInFreeFall = false;
-bool isPlayer = true;
+bool isPlayerVisible = true;
 
 float pulseTimer = 0.0f;
 bool showPulseEffect = false;
@@ -376,10 +377,10 @@ void UpdateLevelTransition(float deltaTime)
     {
         currentPiece.pieceState = NEW;
         doorEffectTimer -= deltaTime;
-        isPlayer = false;
+        isPlayerVisible = false;
         if (doorEffectTimer <= 0.0f)
         {
-            isPlayer = true;
+            isPlayerVisible = true;
             doorHit = false;
             gameState = PLAYING;
             spawnPiece();
@@ -613,20 +614,42 @@ void UpdateDrawParticles(float deltaTime)
 
 void DrawGrid()
 {
+    int gridWidth = GRID_HORIZONTAL_SIZE * BLOCK_SIZE;
+    int gridHeight = GRID_VERTICAL_SIZE * BLOCK_SIZE;
+    int gridX = GRID_OFFSET_X;
+    int gridY = GRID_OFFSET_Y;
+
+    DrawRectangleLines(gridX, gridY, gridWidth, gridHeight, GRAY);
+
+    if (showGrid)
+    {
+        for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+        {
+            for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+            {
+                int screenX = GRID_OFFSET_X + x * BLOCK_SIZE;
+                int screenY = GRID_OFFSET_Y + y * BLOCK_SIZE;
+
+                if (grid[y][x] == 1)
+                {
+                    DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, MAROON);
+                }
+                else
+                {
+                    DrawRectangleLines(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, GRAY);
+                }
+            }
+        }
+    }
     for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
     {
         for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
         {
             int screenX = GRID_OFFSET_X + x * BLOCK_SIZE;
             int screenY = GRID_OFFSET_Y + y * BLOCK_SIZE;
-
             if (grid[y][x] == 1)
             {
                 DrawRectangle(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, MAROON);
-            }
-            else
-            {
-                DrawRectangleLines(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE, GRAY);
             }
         }
     }
@@ -729,6 +752,7 @@ int checkAndClearLines()
 
 int main()
 {
+
     ScoreEntry *latestScores = getScores();
 
     printf("Top %d Scores:\n", MAX_SCORES);
@@ -1089,6 +1113,9 @@ void UpdateGame()
 
     if (pause)
         return;
+
+    if (IsKeyPressed('G'))
+        showGrid = !showGrid;
 
     if (IsKeyPressed('C'))
         return drawLevelTransition();
@@ -1465,6 +1492,7 @@ void UpdateDrawFrame(float gameTime)
         const char *moveText;
         const char *rotateText;
         const char *fallText;
+        const char *gridText;
         const char *playerGameText;
         const char *movePlayerText;
         const char *jumpText;
@@ -1479,6 +1507,7 @@ void UpdateDrawFrame(float gameTime)
             moveText = "Use setas para mover";
             rotateText = "Pressione <CIMA> para girar";
             fallText = "Pressione <BAIXO> para queda rapida e <ESPACO> para queda livre";
+            gridText = "Pressione <G> para fazer o tabuleiro desaparecer ou vice-versa";
             playerGameText = "Jogo do Jogador:";
             movePlayerText = "Use setas para mover";
             jumpText = "Use <ESPACO> para pular";
@@ -1492,6 +1521,7 @@ void UpdateDrawFrame(float gameTime)
             rotateText = "Druecke <HOCH> zum Drehen";
             fallText = "Druecke <RUNTER> fuer schnelles Fallen und <LEERTASTE> fuer "
                        "freien Fall";
+            gridText = "Druecke <G> um das Gitternetz verschwinden zu lassen oder andersherum";
             playerGameText = "Spielerspiel:";
             movePlayerText = "Pfeiltasten zum Bewegen verwenden";
             jumpText = "Verwende <LEERTASTE> zum Springen";
@@ -1505,6 +1535,7 @@ void UpdateDrawFrame(float gameTime)
             moveText = "Use arrows to move";
             rotateText = "Press <UP> to rotate";
             fallText = "Press <DOWN> for fast fall and <SPACE> for free fall";
+            gridText = "Press <G> to make the grid disappear or the other way around";
             playerGameText = "Player Game:";
             movePlayerText = "Use arrows to move";
             jumpText = "Use <SPACE> to jump";
@@ -1529,22 +1560,26 @@ void UpdateDrawFrame(float gameTime)
 
         DrawTextEx(font, playText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, playText, 35, 1).x / 2,
-                             (float)screenHeight / 2 - 105},
+                             (float)screenHeight / 2 - 125},
                    35, 1, WHITE);
         DrawTextEx(font, tetrisText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, tetrisText, 35, 1).x / 2,
-                             (float)screenHeight / 2 - 40},
+                             (float)screenHeight / 2 - 65},
                    35, 1, WHITE);
-        DrawTextEx(
-            font, moveText,
-            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, moveText, 25, 1).x / 2, (float)screenHeight / 2}, 25,
-            1, WHITE);
-        DrawTextEx(font, rotateText,
-                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, rotateText, 25, 1).x / 2,
-                             (float)screenHeight / 2 + 25},
+        DrawTextEx(font, moveText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, moveText, 25, 1).x / 2,
+                             (float)screenHeight / 2 - 25},
                    25, 1, WHITE);
+        DrawTextEx(
+            font, rotateText,
+            (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, rotateText, 25, 1).x / 2, (float)screenHeight / 2},
+            25, 1, WHITE);
         DrawTextEx(font, fallText,
                    (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, fallText, 25, 1).x / 2,
+                             (float)screenHeight / 2 + 25},
+                   25, 1, WHITE);
+        DrawTextEx(font, gridText,
+                   (Vector2){(float)screenWidth / 2 - MeasureTextEx(font, gridText, 25, 1).x / 2,
                              (float)screenHeight / 2 + 50},
                    25, 1, WHITE);
         DrawTextEx(font, playerGameText,
@@ -1592,7 +1627,7 @@ void UpdateDrawFrame(float gameTime)
             rulesText = "Regras";
             playText = "(Pressione ENTER para Jogar)";
             fullLinesText = "Se uma linha inteira estiver cheia, ela sera removida";
-            gridFullText = "Se os Tetrominos ja nao caberem na grade, morreras";
+            gridFullText = "Se os Tetrominos ja nao caberem no tabuleiro, morreras";
             playerGameText = "Jogo do Jogador:";
             dieText = "Se caires entra as plataformas, morreras";
             hitWallText = "Se moveres o jogador contra as paredes, morreras";
@@ -1763,7 +1798,7 @@ void UpdateDrawFrame(float gameTime)
         }
         if (bonusTimer > 0)
         {
-            const char *bonusText = currentLanguage == PORTUGUESE ? "+50 Bonus de Limpeza de Grade!"
+            const char *bonusText = currentLanguage == PORTUGUESE ? "+50 Bonus de Limpeza de tabuleiro!"
                                     : currentLanguage == GERMAN   ? "+50 Bonus fuer Gitterloesung!"
                                                                   : "+50 Grid Clear Bonus!";
             DrawTextEx(font, bonusText, (Vector2){(float)screenWidth / 2 - 135, (float)screenHeight / 2 + 5}, 25, 1,
@@ -1854,7 +1889,7 @@ void UpdateDrawFrame(float gameTime)
         DrawCircleV(handlePos, 2.0f, GOLD);
         DrawCircleLines(handlePos.x, handlePos.y, 2.0f, BLACK);
 
-        if (isPlayer)
+        if (isPlayerVisible)
         {
             for (int i = 0; i < player.size; i++)
             {
