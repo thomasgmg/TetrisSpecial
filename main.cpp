@@ -26,7 +26,10 @@ bool isMuted = false;
 
 // Themes
 bool isGrayBackground = false;
-Color pieceColor = LIGHTGRAY;
+Color gridBrightColor = GRAY;
+Color gridDarkColor = DARKGRAY;
+Color pieceColor = {180, 180, 180, 255};
+Color playingBackground = {200, 200, 200, 255};
 
 // High score entry variables
 char playerName[NAME_LEN] = "";
@@ -223,21 +226,21 @@ void UpdateAudioMute()
     Vector2 mousePoint = GetMousePosition();
     // Check if the mute button is clicked
     if ((CheckCollisionPointRec(mousePoint, muteButton) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) ||
-        (IsKeyPressed('M') && playerNameLength >= NAME_LEN))
-    {
-        isMuted = !isMuted; // Toggle mute state
+        IsKeyPressed('M'))
+        {
+            isMuted = !isMuted; // Toggle mute state
 
-        if (isMuted)
-        {
-            // Mute audio
-            SetMasterVolume(0.0f); // Set volume to 0
+            if (isMuted)
+            {
+                // Mute audio
+                SetMasterVolume(0.0f); // Set volume to 0
+            }
+            else
+            {
+                // Unmute audio
+                SetMasterVolume(1.0f); // Restore full volume
+            }
         }
-        else
-        {
-            // Unmute audio
-            SetMasterVolume(1.0f); // Restore full volume
-        }
-    }
 }
 
 bool CheckHighScore(int score)
@@ -628,7 +631,7 @@ void DrawGrid()
     int gridX = GRID_OFFSET_X;
     int gridY = GRID_OFFSET_Y;
 
-    DrawRectangle(gridX, gridY, gridWidth, gridHeight, isGrayBackground ? GRAY : LIGHTGRAY);
+    DrawRectangle(gridX, gridY, gridWidth, gridHeight, isGrayBackground ? gridDarkColor : gridBrightColor);
 
     if (showGrid)
     {
@@ -1430,7 +1433,7 @@ void UpdateDrawFrame(float gameTime)
         // Draw mute/unmute button
 
         DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
-        DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
+        DrawRectangleRec(muteButton, isMuted ? RED : DARKGREEN);
         DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
 
         // Draw flag buttons
@@ -1726,7 +1729,7 @@ void UpdateDrawFrame(float gameTime)
     }
 
     case PLAYING: {
-        ClearBackground(LIGHTGRAY);
+        ClearBackground(playingBackground);
         UpdateGame();
         DrawGrid();
 
@@ -1840,7 +1843,7 @@ void UpdateDrawFrame(float gameTime)
 
         // Draw mute/unmute button
         DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
-        DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
+        DrawRectangleRec(muteButton, isMuted ? RED : DARKGREEN);
         DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
         break;
     }
@@ -2026,7 +2029,7 @@ void UpdateDrawFrame(float gameTime)
 
         // Draw mute/unmute button
         DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
-        DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
+        DrawRectangleRec(muteButton, isMuted ? RED : DARKGREEN);
         DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
         break;
     }
@@ -2123,7 +2126,7 @@ void UpdateDrawFrame(float gameTime)
 
         // Draw mute/unmute button
         DrawTextEx(font, soundText, (Vector2){muteButton.x + 7, muteButton.y - 15}, 17, 1, WHITE);
-        DrawRectangleRec(muteButton, isMuted ? RED : GREEN);
+        DrawRectangleRec(muteButton, isMuted ? RED : DARKGREEN);
         DrawTextEx(font, onOffText, (Vector2){muteButton.x + 5, muteButton.y + 10}, 20, 1, WHITE);
 
         // Draw top 5 scores on the right side
