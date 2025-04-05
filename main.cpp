@@ -26,7 +26,7 @@ bool isMuted = false;
 
 // Themes
 bool isGrayBackground = false;
-Color pieceColor = MAROON;
+Color pieceColor = LIGHTGRAY;
 
 // High score entry variables
 char playerName[NAME_LEN] = "";
@@ -630,8 +630,6 @@ void DrawGrid()
 
     DrawRectangle(gridX, gridY, gridWidth, gridHeight, isGrayBackground ? GRAY : LIGHTGRAY);
 
-    DrawRectangleLines(gridX, gridY, gridWidth, gridHeight, BLACK);
-
     if (showGrid)
     {
         for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
@@ -664,6 +662,7 @@ void DrawGrid()
             }
         }
     }
+    DrawRectangleLines(gridX, gridY, gridWidth, gridHeight, BLACK);
 }
 
 void DrawPiece(Tetromino *piece)
