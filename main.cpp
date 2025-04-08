@@ -768,6 +768,7 @@ int checkAndClearLines()
 
 int main()
 {
+    SetConfigFlags(FLAG_WINDOW_TRANSPARENT);
 
     ScoreEntry *latestScores = getScores();
 
@@ -1027,7 +1028,7 @@ int main()
         }
         UpdateDrawFrame(gameTime);
     }
-    saveScoresToFile();
+    // saveScoresToFile();
     UnloadGame();
     CloseWindow();
     return 0;
@@ -1974,7 +1975,7 @@ void UpdateDrawFrame(float gameTime)
     }
 
     case GAME_OVER: {
-        ClearBackground(BLACK);
+        ClearBackground((Color){0, 0, 0, 0});
         const char *gameOverText;
         const char *restartText;
         const char *homeText;
