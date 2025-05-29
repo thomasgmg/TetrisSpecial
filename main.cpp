@@ -24,7 +24,7 @@ bool showGrid = true;
 int const screenWidth = 1150;
 int const screenHeight = gridHeight;
 
-// Settings
+// Setting
 bool audioEnabled = true;
 Rectangle muteButton = {(float)screenWidth - 80, 35, 80, 40};
 bool isMuted = false;
@@ -145,6 +145,7 @@ Texture2D flagUK;
 Rectangle flagButtonPortugal = {20, (float)screenHeight - 85, 100, 70};
 Rectangle flagButtonGermany = {140, (float)screenHeight - 85, 100, 70};
 Rectangle flagButtonUK = {260, (float)screenHeight - 85, 100, 70};
+
 struct PlayerUnit
 {
     Vector2 position;
@@ -779,7 +780,9 @@ int main()
     }
 
     srand(time(0));
+
     InitWindow(screenWidth, screenHeight, "Classic Game: TETRIS");
+
     flagPortugal = LoadTexture("resources/flag_portugal.jpeg");
     flagGermany = LoadTexture("resources/flag_germany.jpeg");
     flagUK = LoadTexture("resources/flag_uk.jpeg");
@@ -811,6 +814,8 @@ int main()
 
     while (!WindowShouldClose())
     {
+        // //(if you don't want to see the cursor)
+        // HideCursor();
         gameTime += GetFrameTime();
 
         switch (gameState)
@@ -851,11 +856,18 @@ int main()
             if (IsKeyPressed(KEY_ENTER))
             {
                 if (audioEnabled && !isMuted)
+                {
                     PlaySound(levelStartSound);
-                gameState = PLAYING;
+                }
                 for (int y = 0; y < GRID_VERTICAL_SIZE; y++)
+                {
                     for (int x = 0; x < GRID_HORIZONTAL_SIZE; x++)
+                    {
                         grid[y][x] = 0;
+                    }
+                }
+                gameState = PLAYING;
+
                 score = 0;
                 level = 1;
                 linesClearedTotal = 0;
@@ -1824,7 +1836,7 @@ void UpdateDrawFrame(float gameTime)
             bonusTimer -= GetFrameTime();
         }
 
-        DrawPiece(&currentPiece); // Fixed typo from ¤tPiece
+        DrawPiece(&currentPiece);
         UpdateDrawParticles(GetFrameTime());
         DrawPulseEffect(GetFrameTime());
 
